@@ -42,7 +42,7 @@ async function renderVideo() {
     // 1. Fetch Assets from DB
     const { data: topic, error: topicError } = await supabase
       .from('topics')
-      .select('*, scripts(id, scenes(id, order_index, assets(*)))')
+      .select('*, scripts(id, scenes(id, order_index, narration, assets(*)))')
       .eq('id', topicId)
       .single();
 
