@@ -142,16 +142,18 @@ async function renderVideo() {
     const { data: urlData } = supabase.storage.from('assets').getPublicUrl(storagePath);
     
     // 5. Update DB
-    await supabase.from('videos').insert({
+    const { error: videoError } = await supabase.from('videos').insert({
       topic_id: topicId,
-      video_url: urlData.publicUrl,
+      final_video_url: urlData.publicUrl,
       status: 'ready'
     });
+    if (videoError) throw videoError;
 
-    await supabase
+    const { error: topicUpdateError } = await supabase
       .from('topics')
       .update({ status: 'render_complete' })
       .eq('id', topicId);
+    if (topicUpdateError) throw topicUpdateError;
 
     console.log(`Render complete! URL: ${urlData.publicUrl}`);
 

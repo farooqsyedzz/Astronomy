@@ -73,8 +73,12 @@ export default async function TopicDetailPage({
           {hasScript && !hasAssets && (
              <GenerateAssetsButton topicId={topic.id} disabled={topic.status !== 'scenes_planned'} />
           )}
-          {hasAssets && !video && (
-             <RenderVideoButton topicId={topic.id} disabled={topic.status === 'rendering'} />
+          {hasAssets && (
+             <RenderVideoButton 
+               topicId={topic.id} 
+               disabled={false} 
+               label={topic.status === 'rendering' ? 'Rendering... (Click to Retry)' : video ? 'Re-render Video' : 'Render Video'}
+             />
           )}
         </div>
       </header>
@@ -85,7 +89,7 @@ export default async function TopicDetailPage({
             <CardTitle>Final Rendered Video</CardTitle>
           </CardHeader>
           <CardContent>
-            <video controls className={styles.finalVideoPlayer} src={video.video_url}>
+            <video controls className={styles.finalVideoPlayer} src={video.final_video_url}>
               Your browser does not support the video tag.
             </video>
           </CardContent>
