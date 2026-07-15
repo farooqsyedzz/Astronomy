@@ -27,7 +27,14 @@ export default async function TopicDetailPage({
     .single();
 
   if (topicError || !topic) {
-    notFound();
+    return (
+      <div style={{ padding: '2rem', color: 'red' }}>
+        <h1>Error loading topic</h1>
+        <pre>{JSON.stringify(topicError, null, 2)}</pre>
+        <p>Topic ID: {id}</p>
+        <p>Topic Object: {JSON.stringify(topic, null, 2)}</p>
+      </div>
+    );
   }
 
   const research = topic.research && topic.research.length > 0 ? topic.research[0].content : null;

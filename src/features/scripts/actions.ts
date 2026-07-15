@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { generateScript, generateScenes } from '@/services/gemini';
+import { generateScript, generateScenes } from '@/services/ai';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 

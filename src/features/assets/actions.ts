@@ -19,11 +19,13 @@ export async function generateAssets(topicId: string) {
     throw new Error('Could not find scenes for this topic');
   }
 
-  const scenes = topic.scripts[0].scenes;
-
-  if (!scenes || scenes.length === 0) {
+  const validScript = topic.scripts.find((s: any) => s.scenes && s.scenes.length > 0);
+  
+  if (!validScript) {
     throw new Error('No scenes available to generate assets');
   }
+
+  const scenes = validScript.scenes;
 
   // We process scenes sequentially to avoid rate limits (or memory spikes)
   for (const scene of scenes) {

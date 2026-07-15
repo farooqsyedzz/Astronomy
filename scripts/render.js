@@ -49,7 +49,10 @@ async function renderVideo() {
       throw new Error('Could not find data for this topic');
     }
 
-    const scenes = topic.scripts[0].scenes.sort((a, b) => a.order_index - b.order_index);
+    const validScript = topic.scripts.find(s => s.scenes && s.scenes.length > 0);
+    if (!validScript) throw new Error("No scenes found in any script");
+
+    const scenes = validScript.scenes.sort((a, b) => a.order_index - b.order_index);
     if (!scenes || scenes.length === 0) throw new Error("No scenes found");
 
     console.log(`Found ${scenes.length} scenes.`);
