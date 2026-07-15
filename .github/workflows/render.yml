@@ -1,0 +1,35 @@
+name: Render Video Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      topicId:
+        description: 'The ID of the topic to render'
+        required: true
+        type: string
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Run Render Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node scripts/render.js --topicId "${{ github.event.inputs.topicId }}"

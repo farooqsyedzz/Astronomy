@@ -1,0 +1,91 @@
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s;
+  align-self: flex-start;
+}
+
+.backLink:hover {
+  color: var(--foreground);
+}
+
+.backIcon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+}
+
+.card {
+  padding: 1rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.description {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inputGroup label {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.input {
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  color: var(--foreground);
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.submitButton {
+  margin-top: 1rem;
+}
+
+.iconSm {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+}
+
+.error {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}

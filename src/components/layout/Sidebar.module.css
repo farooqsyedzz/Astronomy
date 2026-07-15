@@ -1,0 +1,67 @@
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 40;
+}
+
+.header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+  gap: 0.75rem;
+}
+
+.logoIcon {
+  color: var(--primary);
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.logoText {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.nav {
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  gap: 0.75rem;
+}
+
+.navItem:hover {
+  background-color: var(--secondary-hover);
+  color: var(--secondary-foreground);
+}
+
+.active {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
