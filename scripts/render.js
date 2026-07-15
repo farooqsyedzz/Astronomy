@@ -75,9 +75,28 @@ async function renderVideo() {
       const imgPath = path.join(tempDir, `scene_${i}.jpg`);
       const audioPath = path.join(tempDir, `scene_${i}.mp3`);
       const outPath = path.join(tempDir, `scene_${i}.mp4`);
+      const txtPath = path.join(tempDir, `scene_${i}.txt`);
 
       await downloadFile(imageAsset.file_url, imgPath);
       await downloadFile(voiceAsset.file_url, audioPath);
+
+      // Word wrap the narration for subtitles (approx 60 chars per line)
+      const words = scene.narration.split(' ');
+      let lines = [];
+      let currentLine = '';
+      for (let word of words) {
+        if ((currentLine + word).length > 60) {
+          lines.push(currentLine.trim());
+          currentLine = word + ' ';
+        } else {
+          currentLine += word + ' ';
+        }
+      }
+      if (currentLine) lines.push(currentLine.trim());
+      await fs.writeFile(txtPath, lines.join('\n'));
+      
+      // FFmpeg requires forward slashes for filter paths even on Windows
+      const safeTxtPath = txtPath.replace(/\\/g, '/');
 
       console.log(`Rendering Scene ${i + 1}...`);
       await new Promise((resolve, reject) => {
@@ -90,7 +109,8 @@ async function renderVideo() {
           .outputOptions([
             '-tune stillimage',
             '-pix_fmt yuv420p',
-            '-vf scale=1920:1080',
+            // Scale and add subtitles
+            `-vf scale=1920:1080,drawtext=textfile='${safeTxtPath}':fontcolor=white:fontsize=48:box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=h-text_h-100:line_spacing=10`,
             '-shortest' // Finish encoding when the shortest stream (audio) ends
           ])
           // Audio codec

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Play } from 'lucide-react';
 import { triggerRenderPipeline } from '@/features/render/actions';
 
-export function RenderVideoButton({ topicId, disabled }: { topicId: string, disabled: boolean }) {
+export function RenderVideoButton({ topicId, disabled, label }: { topicId: string, disabled: boolean, label?: string }) {
   const [isPending, startTransition] = useTransition();
 
   const handleRender = () => {
@@ -26,7 +26,7 @@ export function RenderVideoButton({ topicId, disabled }: { topicId: string, disa
       onClick={handleRender}
     >
       <Play style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
-      {isPending ? 'Starting Render...' : 'Render Video'}
+      {isPending ? 'Starting Render...' : (label || 'Render Video')}
     </Button>
   );
 }

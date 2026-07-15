@@ -8,6 +8,34 @@ const client = new OpenAI({
 // We default to a strong free model on OpenRouter, like deepseek-chat or llama-3.
 const DEFAULT_MODEL = 'openrouter/free';
 
+/**
+ * Robustly parse JSON from LLM output, handling common issues:
+ * - Markdown code fences (```json ... ```)
+ * - Trailing commas before } or ]
+ * - Control characters
+ */
+function robustParseJSON(text: string): any {
+  // Strip markdown code fences
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```$/i, '');
+  }
+  cleaned = cleaned.trim();
+
+  // Remove trailing commas before } or ]
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+
+  // Remove control characters (except newlines and tabs)
+  cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.error('Failed to parse JSON. Raw text (first 500 chars):', cleaned.substring(0, 500));
+    throw e;
+  }
+}
+
 export async function generateTopicResearch(topicName: string): Promise<any> {
   const prompt = `
 You are an expert YouTube content strategist and researcher specializing in educational faceless channels.
@@ -37,7 +65,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
 
     const text = response.choices[0]?.message?.content;
     if (text) {
-      return JSON.parse(text);
+      return robustParseJSON(text);
     }
     
     throw new Error("No response text from OpenRouter");
@@ -84,7 +112,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
 
     const text = response.choices[0]?.message?.content;
     if (text) {
-      return JSON.parse(text);
+      return robustParseJSON(text);
     }
     
     throw new Error("No response text from OpenRouter");
@@ -133,11 +161,7 @@ Respond ONLY with valid JSON (an array). Do not include markdown formatting like
 
     let text = response.choices[0]?.message?.content;
     if (text) {
-      // Strip markdown block if model ignored the instruction
-      if (text.startsWith('\`\`\`json')) {
-         text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-      }
-      return JSON.parse(text);
+      return robustParseJSON(text);
     }
     
     throw new Error("No response text from OpenRouter");

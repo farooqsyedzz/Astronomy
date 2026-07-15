@@ -2,6 +2,10 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { ArrowLeft, Edit3, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -45,6 +49,9 @@ export default async function TopicDetailPage({
   const hasScenes = scenes.length > 0;
   const hasAssets = topic.status === 'assets_generated' || topic.status === 'rendering' || topic.status === 'render_complete';
   const video = topic.videos && topic.videos.length > 0 ? topic.videos[0] : null;
+  
+  console.log("DEBUG: topic.videos is", topic.videos);
+  console.log("DEBUG: assigned video is", video);
 
   return (
     <div className={styles.container}>
