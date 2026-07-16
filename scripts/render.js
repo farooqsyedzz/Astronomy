@@ -153,7 +153,7 @@ async function renderVideo() {
     // 1. Fetch Assets from DB (now including storyboard)
     const { data: topic, error: topicError } = await supabase
       .from('topics')
-      .select('*, scripts(id, scenes(id, order_index, narration, storyboard, assets(*)))')
+      .select('*, scripts(id, scenes(id, order_index, narration, storyboard, assets(*))), thumbnails(*)')
       .eq('id', topicId)
       .single();
 
@@ -384,6 +384,32 @@ async function renderVideo() {
       } else {
         console.warn(`Particle overlay not found at ${overlayPath}, skipping.`);
       }
+    }
+
+    // 6. Embed Thumbnail (if selected)
+    const selectedThumb = topic.thumbnails?.find(t => t.is_selected && t.file_url);
+    if (selectedThumb) {
+      console.log('Embedding selected thumbnail as video cover art...');
+      const thumbPath = path.join(tempDir, 'thumbnail.webp');
+      await downloadFile(selectedThumb.file_url, thumbPath);
+      
+      const withThumbnailPath = path.join(tempDir, 'final_with_thumbnail.mp4');
+      await new Promise((resolve, reject) => {
+        ffmpeg()
+          .input(finalOutput)
+          .input(thumbPath)
+          .outputOptions([
+            '-map 0',
+            '-map 1',
+            '-c copy',
+            '-c:v:1 mjpeg',
+            '-disposition:v:1 attached_pic'
+          ])
+          .save(withThumbnailPath)
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err));
+      });
+      finalOutput = withThumbnailPath;
     }
 
     console.log("Post-processing complete. Uploading to Supabase...");

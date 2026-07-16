@@ -130,7 +130,12 @@ export default async function TopicDetailPage({
             <DeleteVideoButton topicId={topic.id} videoId={video.id} videoUrl={video.final_video_url} />
           </CardHeader>
           <CardContent>
-            <video controls className={styles.finalVideoPlayer} src={video.final_video_url}>
+            <video 
+              controls 
+              className={styles.finalVideoPlayer} 
+              src={video.final_video_url}
+              poster={topic.thumbnails?.find((t: any) => t.is_selected)?.file_url}
+            >
               Your browser does not support the video tag.
             </video>
           </CardContent>

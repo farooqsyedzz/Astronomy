@@ -3,7 +3,7 @@
 import React, { useTransition } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { generateThumbnails, renderThumbnail } from '@/features/quality/actions';
+import { generateThumbnails, renderThumbnail, selectThumbnail } from '@/features/quality/actions';
 import { Image as ImageIcon, Play, Check } from 'lucide-react';
 
 export function ThumbnailsSection({ topicId, thumbnails = [] }: { topicId: string, thumbnails: any[] }) {
@@ -25,6 +25,16 @@ export function ThumbnailsSection({ topicId, thumbnails = [] }: { topicId: strin
         await renderThumbnail(topicId, thumbnailId);
       } catch (error: any) {
         alert(error.message || 'Failed to render thumbnail');
+      }
+    });
+  };
+
+  const handleSelect = (thumbnailId: string) => {
+    startTransition(async () => {
+      try {
+        await selectThumbnail(topicId, thumbnailId);
+      } catch (error: any) {
+        alert(error.message || 'Failed to select thumbnail');
       }
     });
   };
@@ -75,7 +85,7 @@ export function ThumbnailsSection({ topicId, thumbnails = [] }: { topicId: strin
                       </Button>
                     )}
                     {thumb.file_url && (
-                      <Button variant="secondary" disabled={thumb.is_selected || isPending} style={{ flex: 1, padding: '0.5rem' }}>
+                      <Button variant="secondary" onClick={() => handleSelect(thumb.id)} disabled={thumb.is_selected || isPending} style={{ flex: 1, padding: '0.5rem' }}>
                         <Check style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
                         {thumb.is_selected ? 'Selected' : 'Select'}
                       </Button>

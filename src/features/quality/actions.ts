@@ -68,14 +68,15 @@ export async function applyHook(topicId: string, scriptId: string, newHook: stri
   const { data: script } = await supabase.from('scripts').select('script_text').eq('id', scriptId).single();
   
   const prompt = `
-Please apply the hook:
-"${newHook}"
+I want to replace the opening intro of this script.
+Please identify the first paragraph/scene of this script (the intro) and REMOVE IT.
+Return ONLY the remainder of the script exactly as it is written, without changing a single word.
 
-To the beginning of this script:
+Script:
 ${script?.script_text}
 
 Respond ONLY with a JSON object:
-{ "newScriptText": "the full updated script" }
+{ "restOfScript": "the remainder of the script" }
   `;
   
   const response = await client.chat.completions.create({
@@ -87,15 +88,17 @@ Respond ONLY with a JSON object:
 
   const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
   
-  if (parsed.newScriptText) {
+  if (parsed.restOfScript) {
+    const newScriptText = newHook + '\n\n' + parsed.restOfScript;
+
     // 1. Update the script text
-    await supabase.from('scripts').update({ script_text: parsed.newScriptText }).eq('id', scriptId);
+    await supabase.from('scripts').update({ script_text: newScriptText }).eq('id', scriptId);
     
     // 2. Safe regeneration: Attempt to generate new scenes
     const { generateScenes } = await import('@/services/ai');
     let scenesData = null;
     try {
-      scenesData = await generateScenes(parsed.newScriptText, newHook);
+      scenesData = await generateScenes(newScriptText, newHook);
     } catch (err) {
       console.error('Failed to generate scenes after applying hook:', err);
       throw new Error('Script was updated, but failed to automatically regenerate scenes. Please regenerate scenes manually.');
@@ -429,6 +432,25 @@ export async function renderThumbnail(topicId: string, thumbnailId: string) {
   await supabase
     .from('thumbnails')
     .update({ file_url: publicUrlData.publicUrl })
+    .eq('id', thumbnailId);
+
+  revalidatePath(`/dashboard/topics/${topicId}`);
+}
+
+// 7. Select Thumbnail
+export async function selectThumbnail(topicId: string, thumbnailId: string) {
+  const supabase = await createClient();
+
+  // Deselect all thumbnails for this topic
+  await supabase
+    .from('thumbnails')
+    .update({ is_selected: false })
+    .eq('topic_id', topicId);
+
+  // Select the chosen one
+  await supabase
+    .from('thumbnails')
+    .update({ is_selected: true })
     .eq('id', thumbnailId);
 
   revalidatePath(`/dashboard/topics/${topicId}`);
