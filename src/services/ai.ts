@@ -28,6 +28,12 @@ export function robustParseJSON(text: string): any {
   // Remove control characters (except newlines and tabs)
   cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
 
+  // Escape literal newlines and tabs inside strings
+  // This finds string literals and replaces actual \n and \t with escaped versions
+  cleaned = cleaned.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, function(match) {
+    return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+  });
+
   try {
     return JSON.parse(cleaned);
   } catch (e) {
