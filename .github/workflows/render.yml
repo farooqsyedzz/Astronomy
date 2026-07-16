@@ -38,8 +38,14 @@ jobs:
           key: cinematic-assets-v1
 
       - name: Generate BGM and Overlay Assets
-        if: steps.cache-cinematic-assets.outputs.cache-hit != 'true'
         run: node scripts/generate-assets.js
+
+      - name: Verify Cinematic Assets
+        run: |
+          echo "=== BGM Tracks ==="
+          ls -la public/bgm/ || echo "No BGM directory"
+          echo "=== Overlays ==="
+          ls -la public/overlays/ || echo "No overlays directory"
 
       - name: Run Render Script
         env:

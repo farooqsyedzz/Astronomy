@@ -6,18 +6,20 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  const { data: videos, error } = await supabase
+  // Delete the older duplicate video for this topic
+  const { data: videos } = await supabase
     .from('videos')
-    .select('id')
+    .select('id, created_at')
+    .eq('topic_id', 'c393e21e-77f4-44ce-aff4-506fb65ded34')
     .order('created_at', { ascending: false });
     
+  console.log('Videos found:', videos?.length);
   if (videos && videos.length > 1) {
-    // Keep the first (latest), delete the rest
     const idsToDelete = videos.slice(1).map(v => v.id);
-    await supabase.from('videos').delete().in('id', idsToDelete);
-    console.log('Deleted duplicate videos:', idsToDelete);
+    const { error } = await supabase.from('videos').delete().in('id', idsToDelete);
+    console.log('Deleted duplicates:', idsToDelete, 'Error:', error);
   } else {
-    console.log('No duplicates found.');
+    console.log('No duplicates to clean.');
   }
 }
 test();
