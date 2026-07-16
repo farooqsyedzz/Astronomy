@@ -113,3 +113,38 @@ export async function generateAssets(topicId: string) {
 
   revalidatePath(`/dashboard/topics/${topicId}`);
 }
+
+export async function regenerateSceneImage(topicId: string, sceneId: string, imagePrompt: string) {
+  const supabase = await createClient();
+
+  // Generate Image
+  console.log(`Regenerating image for scene ${sceneId}...`);
+  const imageBuffer = await generateImageBuffer(imagePrompt);
+  const imagePath = `${topicId}/scene_${sceneId}_image_${Date.now()}.png`;
+  
+  const { error: imageUploadError } = await supabase.storage
+    .from('assets')
+    .upload(imagePath, imageBuffer, {
+      contentType: 'image/png',
+      upsert: true,
+    });
+    
+  if (imageUploadError) throw imageUploadError;
+
+  const { data: imageUrlData } = supabase.storage.from('assets').getPublicUrl(imagePath);
+
+  // Delete old image record if exists
+  await supabase.from('assets').delete().eq('scene_id', sceneId).eq('type', 'image');
+
+  // Save new record
+  const { error: imageDbError } = await supabase.from('assets').insert({
+    scene_id: sceneId,
+    type: 'image',
+    file_url: `${imageUrlData.publicUrl}?v=${Date.now()}`,
+    status: 'completed',
+  });
+
+  if (imageDbError) throw imageDbError;
+
+  revalidatePath(`/dashboard/topics/${topicId}`);
+}

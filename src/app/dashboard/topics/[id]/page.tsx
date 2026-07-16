@@ -21,6 +21,7 @@ import { ProducerReviewSection } from './ProducerReviewSection';
 import { ThumbnailsSection } from './ThumbnailsSection';
 import { OptimizeScriptButton } from './OptimizeScriptButton';
 import { GenerateHooksButton } from './GenerateHooksButton';
+import { RegenerateSceneImageButton } from './RegenerateSceneImageButton';
 
 export default async function TopicDetailPage({
   params,
@@ -248,6 +249,7 @@ export default async function TopicDetailPage({
                       <div className={styles.visualDetails}>
                         <p className={styles.promptLabel}>Prompt:</p>
                         <p className={styles.promptText}>{scene.image_prompt}</p>
+                        <RegenerateSceneImageButton topicId={topic.id} sceneId={scene.id} imagePrompt={scene.image_prompt} />
                         <div className={styles.badgesRow}>
                           <span className={styles.badge}>{scene.animation_type}</span>
                           <span className={styles.badge}>{scene.duration}s</span>
