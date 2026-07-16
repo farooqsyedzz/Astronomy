@@ -5,8 +5,8 @@ import { ArrowLeft, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import AutoRefresh from '@/components/AutoRefresh';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const dynamic = 'auto';
+export const revalidate = 15; // Cache for 15 seconds to reduce serverless invocations
 
 export default async function QADashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;

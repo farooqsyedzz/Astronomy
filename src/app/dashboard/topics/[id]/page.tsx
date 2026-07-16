@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const dynamic = 'auto';
+export const revalidate = 30; // Cache for 30 seconds to reduce serverless invocations
 
 import { ArrowLeft, Edit3, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
