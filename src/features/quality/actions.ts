@@ -64,10 +64,11 @@ export async function applyHook(topicId: string, scriptId: string, newHook: stri
   // Actually, modifying a script means scenes are now out of date. 
   // Let's just update the script text. The user will have to regenerate scenes.
   
-  // First get current script
   const { data: script } = await supabase.from('scripts').select('script_text').eq('id', scriptId).single();
+  const { data: topic } = await supabase.from('topics').select('title').eq('id', topicId).single();
   
   const scriptText = script?.script_text;
+  const topicTitle = topic?.title || '';
   
   const prompt = `
 You are an expert video director. We are replacing the first scene of our video script with a new hook.
@@ -91,48 +92,78 @@ Respond ONLY with a JSON object:
 }
   `;
   
-  const response = await client.chat.completions.create({
-    model: DEFAULT_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-    max_tokens: 8000,
-  });
+  let maxRetries = 1;
+  let attempts = 0;
+  const { validateTopic } = await import('@/services/qa/validators');
 
-  const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
-  
-  if (parsed.restOfScript && parsed.newSceneImagePrompt) {
-    const newScriptText = newHook + '\n\n' + parsed.restOfScript;
+  while (attempts <= maxRetries) {
+    attempts++;
+    const response = await client.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 8000,
+    });
 
-    // 1. Update the script text
-    await supabase.from('scripts').update({ script_text: newScriptText }).eq('id', scriptId);
+    const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
     
-    // 2. Fetch the FIRST scene to update it
-    const { data: scenes } = await supabase
-      .from('scenes')
-      .select('id, narration')
-      .eq('script_id', scriptId)
-      .order('order_index', { ascending: true })
-      .limit(1);
+    if (parsed.restOfScript && parsed.newSceneImagePrompt) {
+      const newScriptText = newHook + '\n\n' + parsed.restOfScript;
 
-    let originalIntro = '';
+      // QA Firewall Validation
+      const validationResult = await validateTopic(topicTitle, newScriptText);
 
-    if (scenes && scenes.length > 0) {
-      originalIntro = scenes[0].narration;
+      if (validationResult.score >= 90) {
+        // 1. Update the script text
+        await supabase.from('scripts').update({ script_text: newScriptText }).eq('id', scriptId);
+        
+        // 2. Fetch the FIRST scene to update it
+        const { data: scenes } = await supabase
+          .from('scenes')
+          .select('id, narration')
+          .eq('script_id', scriptId)
+          .order('order_index', { ascending: true })
+          .limit(1);
 
-      // 3. Update ONLY the first scene with the new hook and new visual prompt
-      await supabase.from('scenes').update({
-        narration: newHook,
-        image_prompt: parsed.newSceneImagePrompt
-      }).eq('id', scenes[0].id);
+        let originalIntro = '';
 
-      // 4. Delete storyboards and assets ONLY for the first scene
-      // Wait, deleting the scene cascades. Since we just update it, we must manually delete its child assets if they exist, or let the user regenerate.
-      // Easiest is to set status to scenes_planned so it triggers regeneration of storyboards.
-      await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
+        if (scenes && scenes.length > 0) {
+          originalIntro = scenes[0].narration;
+
+          // 3. Update ONLY the first scene with the new hook and new visual prompt
+          await supabase.from('scenes').update({
+            narration: newHook,
+            image_prompt: parsed.newSceneImagePrompt
+          }).eq('id', scenes[0].id);
+
+          await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
+        }
+        
+        revalidatePath(`/dashboard/topics/${topicId}`);
+        return { originalIntro, newHook };
+      }
+
+      console.warn(`[QA] Topic validation failed on applyHook attempt ${attempts} for topic: "${topicTitle}". Score: ${validationResult.score}. Reason: ${validationResult.explanation}`);
+      
+      try {
+        await supabase.from('qa_logs').insert({
+          topic_id: topicId,
+          content: parsed,
+          reason: validationResult.explanation,
+          score: validationResult.score,
+        });
+      } catch (e) {
+        console.error('Failed to save QA log:', e);
+      }
+
+      if (attempts > maxRetries) {
+        throw new Error(`Topic Drift Detected in Hook. The AI deviated from '${topicTitle}'. Reason: ${validationResult.explanation}. Please try another hook.`);
+      }
+    } else {
+      if (attempts > maxRetries) {
+        break;
+      }
     }
-    
-    revalidatePath(`/dashboard/topics/${topicId}`);
-    return { originalIntro, newHook };
   }
   
   revalidatePath(`/dashboard/topics/${topicId}`);
@@ -159,15 +190,16 @@ export async function optimizeScript(topicId: string, scriptId: string) {
 
   const prompt = `
 You are an expert YouTube script editor focused on maximizing audience retention.
-Your ONLY job is to refine and polish the following script.
+Your ONLY job is to refine and polish the following script about the topic: "${topic.title}".
 
 CRITICAL RULES:
-1. Do NOT reduce the total sentence count. You may improve the phrasing or slightly expand the length, but NEVER shorten the script.
-2. Preserve the exact same story structure.
-3. The script MUST be formatted into exactly ${targetSceneCount} logical scenes.
-4. Each scene MUST contain exactly ${sentencesPerScene} sentences.
-5. Focus ONLY on improving clarity, pacing, transitions, curiosity gaps, and storytelling engagement.
-6. Write a highly detailed 16:9 cinematic image prompt for each scene.
+1. You are optimizing a documentary about "${topic.title}". Do NOT change the core topic, subject matter, or drift into unrelated subjects.
+2. Do NOT reduce the total sentence count. You may improve the phrasing or slightly expand the length, but NEVER shorten the script.
+3. Preserve the exact same story structure.
+4. The script MUST be formatted into exactly ${targetSceneCount} logical scenes.
+5. Each scene MUST contain exactly ${sentencesPerScene} sentences.
+6. Focus ONLY on improving clarity, pacing, transitions, curiosity gaps, and storytelling engagement.
+7. Write a highly detailed 16:9 cinematic image prompt for each scene.
 
 Original Script:
 "${scriptText}"
@@ -186,53 +218,83 @@ Respond ONLY with a JSON object:
 }
   `;
 
-  const response = await client.chat.completions.create({
-    model: DEFAULT_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-    max_tokens: 8000,
-  });
+  let maxRetries = 1;
+  let attempts = 0;
+  const { validateTopic } = await import('@/services/qa/validators');
+  const { enforceSceneCount } = await import('@/services/ai');
 
-  const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+  while (attempts <= maxRetries) {
+    attempts++;
+    const response = await client.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 8000,
+    });
 
-  if (parsed.scenes && Array.isArray(parsed.scenes)) {
-    // 1. Programmatically enforce the scene count on the merged output
-    const { enforceSceneCount } = await import('@/services/ai');
-    let scenesData = enforceSceneCount(parsed.scenes, targetSceneCount);
+    const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
 
-    // 2. Reconstruct script text
-    const optimizedScriptText = scenesData.map((s: any) => s.narration).join('\n\n');
+    if (parsed.scenes && Array.isArray(parsed.scenes)) {
+      // 1. Programmatically enforce the scene count on the merged output
+      let scenesData = enforceSceneCount(parsed.scenes, targetSceneCount);
 
-    // 3. Update the script text
-    await supabase.from('scripts').update({ script_text: optimizedScriptText }).eq('id', scriptId);
+      // 2. Reconstruct script text
+      const optimizedScriptText = scenesData.map((s: any) => s.narration).join('\n\n');
 
-    // 4. Delete old scenes (this will cascade delete storyboards and assets)
-    await supabase.from('scenes').delete().eq('script_id', scriptId);
+      // QA Firewall Validation
+      const validationResult = await validateTopic(topic.title, optimizedScriptText);
+      
+      if (validationResult.score >= 90) {
+        // 3. Update the script text
+        await supabase.from('scripts').update({ script_text: optimizedScriptText }).eq('id', scriptId);
 
-    // 5. Insert new scenes
-    const sceneInserts = scenesData.map((scene: any, index: number) => ({
-      script_id: scriptId,
-      narration: scene.narration,
-      duration: scene.duration,
-      image_prompt: scene.imagePrompt,
-      animation_type: scene.animationType,
-      order_index: index,
-    }));
+        // 4. Delete old scenes
+        await supabase.from('scenes').delete().eq('script_id', scriptId);
 
-    const { error: scenesError } = await supabase
-      .from('scenes')
-      .insert(sceneInserts);
+        // 5. Insert new scenes
+        const sceneInserts = scenesData.map((scene: any, index: number) => ({
+          script_id: scriptId,
+          narration: scene.narration,
+          duration: scene.duration,
+          image_prompt: scene.imagePrompt,
+          animation_type: scene.animationType,
+          order_index: index,
+        }));
 
-    if (scenesError) throw scenesError;
+        const { error: scenesError } = await supabase.from('scenes').insert(sceneInserts);
+        if (scenesError) throw scenesError;
 
-    // 6. Reset topic status
-    await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
+        // 6. Reset topic status
+        await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
 
-    return {
-      summary: parsed.changesSummary,
-      originalScript: scriptText,
-      newScript: optimizedScriptText
-    };
+        return {
+          summary: parsed.changesSummary,
+          originalScript: scriptText,
+          newScript: optimizedScriptText
+        };
+      }
+
+      console.warn(`[QA] Topic validation failed on optimize attempt ${attempts} for topic: "${topic.title}". Score: ${validationResult.score}. Reason: ${validationResult.explanation}`);
+      
+      try {
+        await supabase.from('qa_logs').insert({
+          topic_id: topicId,
+          content: parsed,
+          reason: validationResult.explanation,
+          score: validationResult.score,
+        });
+      } catch (e) {
+        console.error('Failed to save QA log:', e);
+      }
+
+      if (attempts > maxRetries) {
+        throw new Error(`Topic Drift Detected during optimization. The AI deviated from '${topic.title}'. Reason: ${validationResult.explanation}. Please optimize again.`);
+      }
+    } else {
+      if (attempts > maxRetries) {
+        return { summary: "Failed to parse scenes from optimizer output", originalScript: scriptText, newScript: scriptText };
+      }
+    }
   }
 
   return { summary: "Failed to parse scenes from optimizer output", originalScript: scriptText, newScript: scriptText };

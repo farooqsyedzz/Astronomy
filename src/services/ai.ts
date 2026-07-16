@@ -116,15 +116,16 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
   }
 }
 
-export async function generateScript(researchContent: string, sceneCount: number = 10, sentencesPerScene: string = '2-3'): Promise<any> {
+export async function generateScript(researchContent: string, sceneCount: number = 10, sentencesPerScene: string = '2-3', topicTitle: string = ''): Promise<any> {
   const prompt = `
 You are an expert documentary scriptwriter and video director for YouTube.
 Using the following research, write a highly engaging, educational, and cinematic video script.
 
 CRITICAL RULES:
-1. The script MUST be formatted and paced to perfectly fit exactly ${sceneCount} visual scenes. Do not deviate from this length.
-2. Each scene MUST contain exactly ${sentencesPerScene} sentences of spoken narration.
-3. For each scene, write a highly detailed, descriptive image generation prompt (16:9 cinematic).
+1. The script MUST be exclusively about the topic: "${topicTitle}". Do not deviate to unrelated historical or scientific subjects.
+2. The script MUST be formatted and paced to perfectly fit exactly ${sceneCount} visual scenes. Do not deviate from this length.
+3. Each scene MUST contain exactly ${sentencesPerScene} sentences of spoken narration.
+4. For each scene, write a highly detailed, descriptive image generation prompt (16:9 cinematic).
 
 Research:
 ${researchContent}

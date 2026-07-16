@@ -24,8 +24,42 @@ export async function generateScriptAndScenes(topicId: string) {
   const sentencesPerScene = topic.sentences_per_scene || '2-3';
 
   try {
-    // 2. Generate Script & Scenes together (Optimized 1 API Call)
-    const scriptData = await generateScript(researchContent, targetSceneCount, sentencesPerScene);
+    let scriptData: any = null;
+    let maxRetries = 1;
+    let attempts = 0;
+    const { validateTopic } = await import('@/services/qa/validators');
+
+    while (attempts <= maxRetries) {
+      attempts++;
+      // 2. Generate Script & Scenes together (Optimized 1 API Call)
+      scriptData = await generateScript(researchContent, targetSceneCount, sentencesPerScene, topic.title);
+
+      // Reconstruct scriptText for validation
+      const scriptTextForValidation = scriptData.scenes.map((s: any) => s.narration).join('\n\n');
+
+      const validationResult = await validateTopic(topic.title, scriptTextForValidation);
+      if (validationResult.score >= 90) {
+        break; // Passed validation
+      }
+
+      console.warn(`[QA] Topic validation failed on attempt ${attempts} for topic: "${topic.title}". Score: ${validationResult.score}. Reason: ${validationResult.explanation}`);
+      
+      // Log the failed output to db or console
+      try {
+        await supabase.from('qa_logs').insert({
+          topic_id: topicId,
+          content: scriptData,
+          reason: validationResult.explanation,
+          score: validationResult.score,
+        });
+      } catch (e) {
+        console.error('Failed to save QA log:', e);
+      }
+
+      if (attempts > maxRetries) {
+        throw new Error(`Topic Drift Detected: The AI deviated from '${topic.title}'. Reason: ${validationResult.explanation}. Please generate again.`);
+      }
+    }
 
     // 3. Reconstruct scriptText
     const scriptText = scriptData.scenes.map((s: any) => s.narration).join('\n\n');
