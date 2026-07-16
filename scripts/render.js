@@ -33,6 +33,26 @@ async function downloadFile(url, outputPath) {
   await fs.writeFile(outputPath, buffer);
 }
 
+// Helper to get audio duration
+function getAudioDuration(filePath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) return reject(err);
+      resolve(metadata.format.duration);
+    });
+  });
+}
+
+// Helper to format SRT timestamp
+function formatSrtTime(seconds) {
+  const date = new Date(seconds * 1000);
+  const hh = String(date.getUTCHours()).padStart(2, '0');
+  const mm = String(date.getUTCMinutes()).padStart(2, '0');
+  const ss = String(date.getUTCSeconds()).padStart(2, '0');
+  const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
+  return `${hh}:${mm}:${ss},${ms}`;
+}
+
 async function renderVideo() {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'render-'));
   
@@ -75,28 +95,41 @@ async function renderVideo() {
       const imgPath = path.join(tempDir, `scene_${i}.jpg`);
       const audioPath = path.join(tempDir, `scene_${i}.mp3`);
       const outPath = path.join(tempDir, `scene_${i}.mp4`);
-      const txtPath = path.join(tempDir, `scene_${i}.txt`);
+      const srtPath = path.join(tempDir, `scene_${i}.srt`);
 
       await downloadFile(imageAsset.file_url, imgPath);
       await downloadFile(voiceAsset.file_url, audioPath);
 
-      // Word wrap the narration for subtitles (approx 60 chars per line)
+      // Generate dynamic SRT subtitles
+      const duration = await getAudioDuration(audioPath);
       const words = scene.narration.split(' ');
-      let lines = [];
-      let currentLine = '';
-      for (let word of words) {
-        if ((currentLine + word).length > 60) {
-          lines.push(currentLine.trim());
-          currentLine = word + ' ';
-        } else {
-          currentLine += word + ' ';
-        }
+      const wordsPerChunk = 4; // Display 4 words at a time
+      const chunks = [];
+      
+      for (let j = 0; j < words.length; j += wordsPerChunk) {
+        chunks.push(words.slice(j, j + wordsPerChunk).join(' '));
       }
-      if (currentLine) lines.push(currentLine.trim());
-      await fs.writeFile(txtPath, lines.join('\n'));
+      
+      const timePerChunk = duration / chunks.length;
+      let srtContent = '';
+      
+      for (let j = 0; j < chunks.length; j++) {
+        const startTime = j * timePerChunk;
+        const endTime = (j + 1) * timePerChunk;
+        
+        srtContent += `${j + 1}\n`;
+        srtContent += `${formatSrtTime(startTime)} --> ${formatSrtTime(endTime)}\n`;
+        srtContent += `${chunks[j]}\n\n`;
+      }
+      
+      await fs.writeFile(srtPath, srtContent);
       
       // FFmpeg requires forward slashes for filter paths even on Windows
-      const safeTxtPath = txtPath.replace(/\\/g, '/');
+      // And we need to escape colons in Windows paths for the filter graph
+      let safeSrtPath = srtPath.replace(/\\/g, '/');
+      if (safeSrtPath.includes(':')) {
+        safeSrtPath = safeSrtPath.replace(':', '\\\\:'); // Escape drive letter colon for FFmpeg filter
+      }
 
       console.log(`Rendering Scene ${i + 1}...`);
       await new Promise((resolve, reject) => {
@@ -109,8 +142,8 @@ async function renderVideo() {
           .outputOptions([
             '-tune stillimage',
             '-pix_fmt yuv420p',
-            // Scale and add subtitles
-            `-vf scale=1920:1080,drawtext=textfile='${safeTxtPath}':fontcolor=white:fontsize=48:box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=h-text_h-100:line_spacing=10`,
+            // Scale and add dynamic subtitles. MarginV=80 places it comfortably at the bottom
+            `-vf scale=1920:1080,subtitles='${safeSrtPath}':force_style='FontSize=28,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=3,Shadow=1,MarginV=80'`,
             '-shortest' // Finish encoding when the shortest stream (audio) ends
           ])
           // Audio codec
