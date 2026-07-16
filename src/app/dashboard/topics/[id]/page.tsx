@@ -14,6 +14,7 @@ import { GenerateScriptButton } from './GenerateScriptButton';
 import { GenerateAssetsButton } from './GenerateAssetsButton';
 import { RenderVideoButton } from './RenderVideoButton';
 import { GenerateStoryboardButton } from './GenerateStoryboardButton';
+import { DirectorChat } from './DirectorChat';
 
 export default async function TopicDetailPage({
   params,
@@ -220,6 +221,10 @@ export default async function TopicDetailPage({
                           </audio>
                         </div>
                       )}
+                      
+                      <div style={{ marginTop: '16px' }}>
+                        <DirectorChat topicId={topic.id} sceneId={scene.id} />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

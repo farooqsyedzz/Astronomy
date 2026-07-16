@@ -59,11 +59,11 @@ export async function generateAssets(topicId: string) {
 
         const { data: audioUrlData } = supabase.storage.from('assets').getPublicUrl(audioPath);
         
-        // Insert Audio Asset Record
+        // Insert Audio Asset Record with cache-busting query parameter
         await supabase.from('assets').insert({
           scene_id: scene.id,
           type: 'voice',
-          file_url: audioUrlData.publicUrl,
+          file_url: `${audioUrlData.publicUrl}?v=${Date.now()}`,
           status: 'completed',
         });
       } else {
@@ -87,11 +87,11 @@ export async function generateAssets(topicId: string) {
 
         const { data: imageUrlData } = supabase.storage.from('assets').getPublicUrl(imagePath);
 
-        // Insert Image Asset Record
+        // Insert Image Asset Record with cache-busting query parameter
         await supabase.from('assets').insert({
           scene_id: scene.id,
           type: 'image',
-          file_url: imageUrlData.publicUrl,
+          file_url: `${imageUrlData.publicUrl}?v=${Date.now()}`,
           status: 'completed',
         });
       } else {
