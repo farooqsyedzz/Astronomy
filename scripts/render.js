@@ -222,7 +222,8 @@ async function renderVideo() {
           const fontSize = config.subtitles.fontSize;
           const marginV = config.subtitles.marginV;
           const outline = config.subtitles.outline;
-          vfChain += `,subtitles='${safeSrtPath}':force_style='FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=${outline},Shadow=1,MarginV=${marginV}'`;
+          const borderStyle = config.subtitles.borderStyle || 1;
+          vfChain += `,subtitles='${safeSrtPath}':force_style='FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H00000000,BorderStyle=${borderStyle},Outline=${outline},Shadow=1,MarginV=${marginV}'`;
         }
 
         console.log(`  🎬 Camera: ${movement} | Zoom: ${finalZoom.toFixed(3)}`);
@@ -255,7 +256,8 @@ async function renderVideo() {
           const fontSize = config.subtitles.fontSize;
           const marginV = config.subtitles.marginV;
           const outline = config.subtitles.outline;
-          vf += `,subtitles='${safeSrtPath}':force_style='FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=${outline},Shadow=1,MarginV=${marginV}'`;
+          const borderStyle = config.subtitles.borderStyle || 1;
+          vf += `,subtitles='${safeSrtPath}':force_style='FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H00000000,BorderStyle=${borderStyle},Outline=${outline},Shadow=1,MarginV=${marginV}'`;
         }
 
         await new Promise((resolve, reject) => {

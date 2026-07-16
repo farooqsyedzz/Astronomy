@@ -13,10 +13,10 @@ module.exports = {
   camera: {
     enabled: true,
     // Base zoom intensity (how much to zoom over the scene duration)
-    // Range: 0.0 (no zoom) to 0.5 (dramatic zoom). 0.15 is subtle/documentary.
-    zoomIntensity: 0.15,
+    // Range: 0.0 (no zoom) to 0.5 (dramatic zoom). 0.05 is barely noticeable/documentary.
+    zoomIntensity: 0.05,
     // Random variation applied to zoom intensity per scene (±)
-    zoomVariation: 0.05,
+    zoomVariation: 0.02,
     // Available movements. The director picks one, or it's randomized.
     movements: ['zoom_in_center', 'zoom_out_center', 'pan_left', 'pan_right', 'pan_up', 'ken_burns_tl_br', 'ken_burns_br_tl'],
     // Frames per second for the zoompan filter (higher = smoother but slower render)
@@ -62,12 +62,14 @@ module.exports = {
   subtitles: {
     enabled: true,
     // Words per subtitle chunk
-    wordsPerChunk: 4,
-    // Font size
-    fontSize: 28,
+    wordsPerChunk: 5,
+    // Font size (smaller = less intrusive)
+    fontSize: 22,
     // Bottom margin (pixels from bottom)
-    marginV: 80,
+    marginV: 40,
     // Outline thickness
-    outline: 3,
+    outline: 2,
+    // BorderStyle: 1 = outline + shadow (transparent bg), 3 = opaque box
+    borderStyle: 1,
   },
 };
