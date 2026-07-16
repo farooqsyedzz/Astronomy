@@ -12,7 +12,7 @@ export function OptimizeScriptButton({ topicId, scriptId }: { topicId: string, s
     startTransition(async () => {
       try {
         const summary = await optimizeScript(topicId, scriptId);
-        alert('Script optimized successfully!\n\nChanges:\n' + summary);
+        alert('Script optimized successfully!\n\nYour script has changed. Existing scenes are outdated and will be regenerated.\n\nChanges:\n' + summary);
       } catch (error: any) {
         alert(error.message || 'Failed to optimize script');
       }

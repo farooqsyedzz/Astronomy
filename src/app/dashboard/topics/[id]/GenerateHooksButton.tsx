@@ -26,7 +26,7 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
         try {
           await applyHook(topicId, scriptId, hookText);
           setHooks([]);
-          alert('Hook applied successfully!');
+          alert('Hook applied successfully!\n\nYour script has changed. Existing scenes are outdated and will be regenerated.');
         } catch (error: any) {
           alert(error.message || 'Failed to apply hook');
         }

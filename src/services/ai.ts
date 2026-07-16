@@ -164,7 +164,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
   }
 }
 
-export async function generateScenes(scriptText: string): Promise<any> {
+export async function generateScenes(scriptText: string, hookText?: string): Promise<any> {
   const prompt = `
 You are an expert YouTube video director. I will give you the voiceover script for a faceless educational YouTube video.
 Your job is to break the script down into individual scenes and plan the visuals (images) for each scene.
@@ -178,6 +178,7 @@ Rules:
 3. Write a highly detailed, descriptive image generation prompt for the visual of that scene. The prompt should be suitable for an AI image generator (like Midjourney or DALL-E) to create a cinematic, photorealistic 16:9 image.
 4. Specify a subtle camera animation type for the image (e.g., 'pan_right', 'zoom_in', 'static', 'pan_left').
 5. Estimate the duration of the scene based on the narration length (assume normal speaking pace).
+${hookText ? `6. CRITICAL: The very first scene MUST contain the exact following narration text, word for word, no exceptions: "${hookText}"` : ''}
 
 Your output must be a valid JSON array of objects with the exact following structure:
 [

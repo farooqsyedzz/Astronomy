@@ -88,10 +88,41 @@ Respond ONLY with a JSON object:
   const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
   
   if (parsed.newScriptText) {
+    // 1. Update the script text
     await supabase.from('scripts').update({ script_text: parsed.newScriptText }).eq('id', scriptId);
     
-    // Optional: Delete existing scenes so they have to be regenerated?
-    // We will just let the user click Generate Scenes again.
+    // 2. Safe regeneration: Attempt to generate new scenes
+    const { generateScenes } = await import('@/services/ai');
+    let scenesData = null;
+    try {
+      scenesData = await generateScenes(parsed.newScriptText, newHook);
+    } catch (err) {
+      console.error('Failed to generate scenes after applying hook:', err);
+      throw new Error('Script was updated, but failed to automatically regenerate scenes. Please regenerate scenes manually.');
+    }
+
+    if (scenesData && scenesData.length > 0) {
+      // Hook Preservation: Override scene 1 narration explicitly to guarantee no LLM drift
+      scenesData[0].narration = newHook;
+
+      // 3. Delete old scenes (this will cascade delete storyboards and assets)
+      await supabase.from('scenes').delete().eq('script_id', scriptId);
+
+      // 4. Insert new scenes
+      const sceneInserts = scenesData.map((scene: any, index: number) => ({
+        script_id: scriptId,
+        narration: scene.narration,
+        duration: scene.duration,
+        image_prompt: scene.imagePrompt,
+        animation_type: scene.animationType,
+        order_index: index,
+      }));
+
+      await supabase.from('scenes').insert(sceneInserts);
+
+      // 5. Invalidate status so user must generate assets again
+      await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
+    }
   }
   
   revalidatePath(`/dashboard/topics/${topicId}`);
@@ -143,7 +174,38 @@ Respond ONLY with a JSON object:
   const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
 
   if (parsed.optimizedScriptText) {
+    // 1. Update the script text
     await supabase.from('scripts').update({ script_text: parsed.optimizedScriptText }).eq('id', scriptId);
+
+    // 2. Safe regeneration: Attempt to generate new scenes
+    const { generateScenes } = await import('@/services/ai');
+    let scenesData = null;
+    try {
+      scenesData = await generateScenes(parsed.optimizedScriptText);
+    } catch (err) {
+      console.error('Failed to generate scenes after optimizing script:', err);
+      throw new Error('Script was updated, but failed to automatically regenerate scenes. Please regenerate scenes manually.');
+    }
+
+    if (scenesData && scenesData.length > 0) {
+      // 3. Delete old scenes (this will cascade delete storyboards and assets)
+      await supabase.from('scenes').delete().eq('script_id', scriptId);
+
+      // 4. Insert new scenes
+      const sceneInserts = scenesData.map((scene: any, index: number) => ({
+        script_id: scriptId,
+        narration: scene.narration,
+        duration: scene.duration,
+        image_prompt: scene.imagePrompt,
+        animation_type: scene.animationType,
+        order_index: index,
+      }));
+
+      await supabase.from('scenes').insert(sceneInserts);
+
+      // 5. Invalidate status so user must generate assets again
+      await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
+    }
   }
 
   revalidatePath(`/dashboard/topics/${topicId}`);
