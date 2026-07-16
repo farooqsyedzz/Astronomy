@@ -3,11 +3,12 @@
 import React, { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/Button';
 import { generateMultipleHooks, applyHook } from '@/features/quality/actions';
-import { Sparkles, Check } from 'lucide-react';
+import { Sparkles, Check, X } from 'lucide-react';
 
 export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, scriptId: string }) {
   const [isPending, startTransition] = useTransition();
   const [hooks, setHooks] = useState<any[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleGenerate = () => {
     startTransition(async () => {
@@ -26,7 +27,7 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
         try {
           await applyHook(topicId, scriptId, hookText);
           setHooks([]);
-          alert('Hook applied successfully!\n\nYour script has changed. Existing scenes are outdated and will be regenerated.');
+          setSuccessMessage('Hook applied successfully!\n\nYour script has changed. Existing scenes are outdated and will be regenerated.');
         } catch (error: any) {
           alert(error.message || 'Failed to apply hook');
         }
@@ -40,6 +41,38 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
         <Sparkles style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
         {isPending && hooks.length === 0 ? 'Generating...' : 'Generate Hooks'}
       </Button>
+
+      {successMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          width: '400px',
+          maxWidth: '90vw',
+          backgroundColor: '#1f2937',
+          border: '1px solid #10b981',
+          borderRadius: '0.5rem',
+          padding: '1.5rem',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ margin: 0, color: '#10b981', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Check size={20} />
+              Success
+            </h4>
+            <button onClick={() => setSuccessMessage(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>
+              <X size={20} />
+            </button>
+          </div>
+          <p style={{ margin: 0, color: '#d1d5db', fontSize: '0.9rem', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+            {successMessage}
+          </p>
+        </div>
+      )}
 
       {hooks.length > 0 && (
         <div style={{
