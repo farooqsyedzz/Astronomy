@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { robustParseJSON, DEFAULT_MODEL, client } from '@/services/ai';
+import { robustParseJSON, DEFAULT_MODEL, client, runQACompletion } from '@/services/ai';
 import { revalidatePath } from 'next/cache';
 
 // 1. Generate Multiple Hooks
@@ -30,26 +30,20 @@ Here is the current script:
 Please generate 3-5 different opening hooks (the first 10-15 seconds of the script) that are designed to maximize viewer retention. 
 Provide a predicted retention score (0-100) for each hook based on curiosity, emotional pull, and relevance.
 
-Respond ONLY with a valid JSON array of objects with the exact following structure:
-[
-  {
-    "hookText": "The exact spoken text of the new hook.",
-    "predictedRetention": 95,
-    "rationale": "Why this hook works."
-  }
-]
+Respond ONLY with a JSON object containing a "hooks" array:
+{
+  "hooks": [
+    {
+      "hookText": "The exact spoken text of the new hook.",
+      "predictedRetention": 95,
+      "rationale": "Why this hook works."
+    }
+  ]
+}
 `;
 
-  const response = await client.chat.completions.create({
-    model: DEFAULT_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 8000,
-  });
-
-  const text = response.choices[0]?.message?.content;
-  if (!text) throw new Error('No response from AI');
-  
-  return robustParseJSON(text);
+  const parsed = await runQACompletion(prompt);
+  return parsed.hooks || [];
 }
 
 // 2. Apply a selected hook
@@ -98,16 +92,9 @@ Respond ONLY with a JSON object:
 
   while (attempts <= maxRetries) {
     attempts++;
-    const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 8000,
-    });
-
     let parsed: any = {};
     try {
-      parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+      parsed = await runQACompletion(prompt);
     } catch (e) {
       console.warn(`JSON parse failed on applyHook attempt ${attempts}`);
     }
@@ -401,31 +388,28 @@ Generate 3-5 different thumbnail concepts for this video.
 Do NOT include any text inside the image prompt. The image prompt should just be a striking, cinematic background.
 The text will be overlaid separately. Provide the exact text that should be overlaid (very short, 2-5 words).
 
-Respond ONLY with a JSON array of objects:
-[
-  {
-    "concept_title": "The name of this concept",
-    "image_prompt": "Cinematic description of the background image without any text in it",
-    "overlay_text": "THE SHORT TEXT",
-    "text_position": "center", // 'center', 'bottom', 'top', 'bottom-right'
-    "font_size": 120,
-    "font_color": "#ffffff",
-    "stroke_color": "#000000",
-    "estimated_ctr": 85
-  }
-]
+Respond ONLY with a JSON object containing a "thumbnails" array:
+{
+  "thumbnails": [
+    {
+      "concept_title": "The name of this concept",
+      "image_prompt": "Cinematic description of the background image without any text in it",
+      "overlay_text": "THE SHORT TEXT",
+      "text_position": "center", // 'center', 'bottom', 'top', 'bottom-right'
+      "font_size": 120,
+      "font_color": "#ffffff",
+      "stroke_color": "#000000",
+      "estimated_ctr": 85
+    }
+  ]
+}
   `;
 
-  const response = await client.chat.completions.create({
-    model: DEFAULT_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 8000,
-  });
-
-  const parsed = robustParseJSON(response.choices[0]?.message?.content || '[]');
+  const parsed = await runQACompletion(prompt);
 
   // Insert all concepts into DB. They will be rendered asynchronously or by a separate action.
-  for (const concept of parsed) {
+  const thumbnailsToInsert = parsed.thumbnails || [];
+  for (const concept of thumbnailsToInsert) {
     await supabase.from('thumbnails').insert({
       topic_id: topicId,
       concept_title: concept.concept_title,

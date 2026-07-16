@@ -3,9 +3,16 @@ export type QADecision = 'APPROVED' | 'MINOR_IMPROVEMENTS' | 'REGENERATE';
 
 export interface QAAutoFix {
   scene_id?: string;
-  problem: string;
+  problem?: string;
   fixed_prompt?: string;
-  can_autofix: boolean;
+  can_autofix?: boolean;
+  fixes?: Array<{
+    scene_order: number;
+    issue_type: string;
+    original_text: string;
+    new_scene_narration: string;
+    reason: string;
+  }>;
 }
 
 export interface QAModuleResult {

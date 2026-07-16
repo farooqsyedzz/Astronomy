@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { runUnifiedQA } from './unifiedVerifier';
 import { verifyTopic } from './topicVerifier';
 import { verifyScript } from './scriptVerifier';
 import { verifyScenes } from './sceneVerifier';
@@ -56,15 +57,15 @@ export async function runQAPipeline(topicId: string, videoId: string) {
     }
 
     async function finishModuleRun(runId: string, result: QAModuleResult) {
-      if (!runId) return;
+      if (!runId || !result) return;
       await supabase
         .from('qa_module_runs')
         .update({
-          status: result.status,
-          score: result.score,
-          confidence: result.confidence,
-          issues: result.issues,
-          recommendations: result.recommendations,
+          status: result.status || 'failed',
+          score: result.score || 0,
+          confidence: result.confidence || 0,
+          issues: result.issues || [],
+          recommendations: result.recommendations || [],
           auto_fix: result.auto_fix,
           updated_at: new Date().toISOString()
         })
@@ -79,36 +80,65 @@ export async function runQAPipeline(topicId: string, videoId: string) {
     const thumbnailRunId = await initModuleRun('thumbnail');
     const seoRunId = await initModuleRun('seo');
 
-    // 4. Execute all QA modules concurrently
-    const [topicRes, scriptRes, scenesRes, imagesRes, thumbRes, seoRes] = await Promise.all([
-      verifyTopic(topic.title, research, script).then(async (res) => {
-        await finishModuleRun(topicRunId, res);
-        return res;
-      }),
-      verifyScript(script).then(async (res) => {
-        await finishModuleRun(scriptRunId, res);
-        return res;
-      }),
-      verifyScenes(script?.script_text || '', scenes).then(async (res) => {
-        await finishModuleRun(scenesRunId, res);
-        return res;
-      }),
-      verifyImages(scenes).then(async (res) => {
-        await finishModuleRun(imagesRunId, res);
-        return res;
-      }),
-      verifyThumbnail().then(async (res) => {
-        await finishModuleRun(thumbnailRunId, res);
-        return res;
-      }),
-      verifySEO(script).then(async (res) => {
-        await finishModuleRun(seoRunId, res);
-        return res;
-      })
-    ]);
+    // 4. Run Unified QA Mega-Prompt
+    console.log(`Running unified QA mega-prompt for topic ${topicId}...`);
+    const unifiedResults = await runUnifiedQA(topic.title, research, script, scenes);
+
+    // 5. Apply Results and Handle Fallbacks
+    const promises = [];
+
+    // Topic
+    if (unifiedResults.topic_result) {
+      promises.push(finishModuleRun(topicRunId, unifiedResults.topic_result).then(() => unifiedResults.topic_result));
+    } else {
+      console.log('Fallback: Running topic verifier independently');
+      promises.push(verifyTopic(topic.title, research, script).then(async res => { await finishModuleRun(topicRunId, res); return res; }));
+    }
+
+    // Script
+    if (unifiedResults.script_result) {
+      promises.push(finishModuleRun(scriptRunId, unifiedResults.script_result).then(() => unifiedResults.script_result));
+    } else {
+      console.log('Fallback: Running script verifier independently');
+      promises.push(verifyScript(script).then(async res => { await finishModuleRun(scriptRunId, res); return res; }));
+    }
+
+    // Scenes
+    if (unifiedResults.scenes_result) {
+      promises.push(finishModuleRun(scenesRunId, unifiedResults.scenes_result).then(() => unifiedResults.scenes_result));
+    } else {
+      console.log('Fallback: Running scenes verifier independently');
+      promises.push(verifyScenes(script?.script_text || '', scenes).then(async res => { await finishModuleRun(scenesRunId, res); return res; }));
+    }
+
+    // Images
+    if (unifiedResults.images_result) {
+      promises.push(finishModuleRun(imagesRunId, unifiedResults.images_result).then(() => unifiedResults.images_result));
+    } else {
+      console.log('Fallback: Running images verifier independently');
+      promises.push(verifyImages(scenes).then(async res => { await finishModuleRun(imagesRunId, res); return res; }));
+    }
+
+    // Thumbnail
+    if (unifiedResults.thumbnail_result) {
+      promises.push(finishModuleRun(thumbnailRunId, unifiedResults.thumbnail_result).then(() => unifiedResults.thumbnail_result));
+    } else {
+      console.log('Fallback: Running thumbnail verifier independently');
+      promises.push(verifyThumbnail().then(async res => { await finishModuleRun(thumbnailRunId, res); return res; }));
+    }
+
+    // SEO
+    if (unifiedResults.seo_result) {
+      promises.push(finishModuleRun(seoRunId, unifiedResults.seo_result).then(() => unifiedResults.seo_result));
+    } else {
+      console.log('Fallback: Running seo verifier independently');
+      promises.push(verifySEO(script).then(async res => { await finishModuleRun(seoRunId, res); return res; }));
+    }
+
+    const [topicRes, scriptRes, scenesRes, imagesRes, thumbRes, seoRes] = await Promise.all(promises);
 
     // 5. Final Judge
-    const results = [topicRes, scriptRes, scenesRes, imagesRes, thumbRes, seoRes];
+    const results = [topicRes, scriptRes, scenesRes, imagesRes, thumbRes, seoRes] as QAModuleResult[];
     const { overall_score, decision, confidence } = judgeFinalScore(results);
 
     // 6. Update QA Report

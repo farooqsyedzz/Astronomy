@@ -8,9 +8,14 @@ import AutoRefresh from '@/components/AutoRefresh';
 export const dynamic = 'auto';
 export const revalidate = 15; // Cache for 15 seconds to reduce serverless invocations
 
-export default async function QADashboardPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QADashboardPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const resolvedParams = await params;
   const id = resolvedParams.id;
+  
+  // Await searchParams in Next 15+
+  const resolvedSearchParams = await searchParams;
+  const showSuccessBanner = resolvedSearchParams?.success === 'autofix';
+  
   const supabase = await createClient();
 
   const { data: topic } = await supabase
@@ -47,6 +52,13 @@ export default async function QADashboardPage({ params }: { params: Promise<{ id
     <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       {isRunning && <AutoRefresh intervalMs={3000} />}
       
+      {showSuccessBanner && (
+        <div style={{ padding: '1rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: '0.5rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <CheckCircle size={20} />
+          <strong>Fixes applied successfully!</strong> The script has been updated.
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <Link href={`/dashboard/topics/${topic.id}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted-foreground)' }}>
           <ArrowLeft size={16} /> Back to Topic
@@ -116,16 +128,41 @@ export default async function QADashboardPage({ params }: { params: Promise<{ id
                   </div>
                 )}
 
-                {run.auto_fix && (
+                {/* Original Image autofix logic */}
+                {run.auto_fix && run.auto_fix.fixed_prompt && (
                   <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '0.25rem', borderLeft: '4px solid #3b82f6' }}>
-                    <p style={{ fontWeight: 'bold', margin: '0 0 0.5rem 0', color: '#3b82f6' }}>Auto-Fix Available:</p>
+                    <p style={{ fontWeight: 'bold', margin: '0 0 0.5rem 0', color: '#3b82f6' }}>Auto-Fix Available (Image):</p>
                     <p style={{ margin: 0, color: 'var(--foreground)' }}><strong>Problem:</strong> {run.auto_fix.problem}</p>
                     <p style={{ margin: '0.5rem 0 0 0', color: 'var(--foreground)' }}><strong>Proposed Fix:</strong> {run.auto_fix.fixed_prompt}</p>
                     <form action="/api/qa/autofix" method="POST" style={{ marginTop: '1rem' }}>
                       <input type="hidden" name="moduleId" value={run.id} />
+                      <input type="hidden" name="type" value="image" />
                       <input type="hidden" name="sceneId" value={run.auto_fix.scene_id} />
                       <button type="submit" style={{ padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>
-                        Apply Auto-Fix
+                        Apply Image Fix
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* New Script autofix logic */}
+                {run.auto_fix && run.auto_fix.fixes && run.auto_fix.fixes.length > 0 && (
+                  <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'rgba(16, 185, 129, 0.05)', borderRadius: '0.25rem', borderLeft: '4px solid #10b981' }}>
+                    <p style={{ fontWeight: 'bold', margin: '0 0 0.5rem 0', color: '#10b981' }}>Script Auto-Fixes Available ({run.auto_fix.fixes.length}):</p>
+                    <ul style={{ margin: 0, paddingLeft: '1.5rem', color: 'var(--foreground)' }}>
+                      {run.auto_fix.fixes.map((fix: any, idx: number) => (
+                        <li key={idx} style={{ marginBottom: '1rem' }}>
+                          <span style={{ fontWeight: 'bold', color: '#ef4444' }}>Original:</span> {fix.original_text}<br />
+                          <span style={{ fontWeight: 'bold', color: '#10b981' }}>Suggestion:</span> {fix.new_scene_narration}<br />
+                          <span style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>Reason: {fix.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <form action="/api/qa/autofix" method="POST" style={{ marginTop: '1rem' }}>
+                      <input type="hidden" name="moduleId" value={run.id} />
+                      <input type="hidden" name="type" value="script" />
+                      <button type="submit" style={{ padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>
+                        Apply All Script Fixes
                       </button>
                     </form>
                   </div>

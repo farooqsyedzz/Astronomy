@@ -5,8 +5,8 @@ export const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
 });
 
-// We default to a strong free model on OpenRouter, like deepseek-chat or llama-3.
-export const DEFAULT_MODEL = 'openrouter/free';
+// We default to a strong, fast free model on OpenRouter.
+// openrouter/free often routes to slower reasoning models that time out.
 
 /**
  * Robustly parse JSON from LLM output, handling common issues:
@@ -42,38 +42,56 @@ export function robustParseJSON(text: string): any {
   }
 }
 
-export async function runQACompletion(prompt: string, model: string = DEFAULT_MODEL, retries: number = 1): Promise<any> {
-  try {
-    const response = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 8000,
-    });
-    
-    const text = response?.choices?.[0]?.message?.content;
-    if (text) {
-      try {
-        return robustParseJSON(text);
-      } catch (parseError) {
-        if (retries > 0) {
-          console.warn(`JSON parse failed, retrying... (${retries} retries left)`);
-          return runQACompletion(prompt, model, retries - 1);
+export const FREE_MODELS = [
+  'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-nano-9b-v2:free',
+  'poolside/laguna-m.1:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free'
+];
+
+export const DEFAULT_MODEL = FREE_MODELS[0];
+
+export async function runQACompletion(prompt: string, modelList: string[] = FREE_MODELS, retries: number = 2): Promise<any> {
+  let lastError = null;
+
+  for (const currentModel of modelList) {
+    try {
+      console.log(`Trying OpenRouter model: ${currentModel}`);
+      const response = await client.chat.completions.create({
+        model: currentModel,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 8000,
+      });
+      
+      const text = response?.choices?.[0]?.message?.content;
+      if (text) {
+        try {
+          return robustParseJSON(text);
+        } catch (parseError) {
+          if (retries > 0) {
+            console.warn(`JSON parse failed on ${currentModel}, retrying...`);
+            return runQACompletion(prompt, modelList, retries - 1);
+          }
+          throw parseError;
         }
-        throw parseError;
       }
+      
+      console.error("OpenRouter Response missing text for model", currentModel);
+      throw new Error("No response text from OpenRouter");
+    } catch (error: any) {
+      console.warn(`Model ${currentModel} failed: ${error?.message || 'Unknown error'}`);
+      lastError = error;
+      // If it's a parse error, it's not a model availability issue, but we still try the next model.
     }
-    
-    console.error("OpenRouter Response missing text:", JSON.stringify(response, null, 2));
-    throw new Error("No response text from OpenRouter");
-  } catch (error) {
-    if (retries > 0) {
-      console.warn(`API call failed, retrying... (${retries} retries left)`);
-      return runQACompletion(prompt, model, retries - 1);
-    }
-    console.error('Error in runQACompletion:', error);
-    throw new Error('Failed to execute QA module via OpenRouter');
   }
+
+  throw lastError || new Error('All fallback models failed to execute QA module');
 }
 
 export async function generateTopicResearch(topicName: string): Promise<any> {

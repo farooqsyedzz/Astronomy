@@ -10,7 +10,7 @@ Original Script:
 "${scriptText}"
 
 Generated Scenes:
-${JSON.stringify(scenes.map(s => ({ id: s.id, narration: s.narration, order_index: s.order_index })))}
+${JSON.stringify(scenes.map(s => ({ order: s.order_index, nar: s.narration })))}
 
 Verify:
 1. Does the combined scene narration match the script completely without missing large chunks?

@@ -7,8 +7,8 @@ You are an expert QA Agent for an educational YouTube channel.
 Your task is to verify the coherence between the original Topic, the Research, and the final Script.
 
 Topic: "${topicName}"
-Research: ${JSON.stringify(research)}
-Script: ${JSON.stringify(script)}
+Research Summary: "${research?.summary}"
+Script Text: "${script?.script_text}"
 
 Verify:
 1. Is the script truly about the selected topic?
