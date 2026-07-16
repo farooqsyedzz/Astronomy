@@ -67,16 +67,28 @@ export async function applyHook(topicId: string, scriptId: string, newHook: stri
   // First get current script
   const { data: script } = await supabase.from('scripts').select('script_text').eq('id', scriptId).single();
   
+  const scriptText = script?.script_text;
+  
   const prompt = `
-I want to replace the opening intro of this script.
-Please identify the first paragraph/scene of this script (the intro) and REMOVE IT.
-Return ONLY the remainder of the script exactly as it is written, without changing a single word.
+You are an expert video director. We are replacing the first scene of our video script with a new hook.
+Below is the original script text, and the new hook we want to use.
 
-Script:
-${script?.script_text}
+Original Script:
+"${scriptText}"
+
+New Hook:
+"${newHook}"
+
+Task:
+1. Identify the intro paragraph(s) of the Original Script that should be replaced by the New Hook.
+2. Output the "restOfScript" (the original script minus the old intro).
+3. Write a highly detailed, 16:9 cinematic image prompt for the New Hook.
 
 Respond ONLY with a JSON object:
-{ "restOfScript": "the remainder of the script" }
+{
+  "restOfScript": "The rest of the script untouched.",
+  "newSceneImagePrompt": "Cinematic 16:9 photorealistic image of..."
+}
   `;
   
   const response = await client.chat.completions.create({
@@ -88,47 +100,43 @@ Respond ONLY with a JSON object:
 
   const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
   
-  if (parsed.restOfScript) {
+  if (parsed.restOfScript && parsed.newSceneImagePrompt) {
     const newScriptText = newHook + '\n\n' + parsed.restOfScript;
 
     // 1. Update the script text
     await supabase.from('scripts').update({ script_text: newScriptText }).eq('id', scriptId);
     
-    // 2. Safe regeneration: Attempt to generate new scenes
-    const { generateScenes } = await import('@/services/ai');
-    let scenesData = null;
-    try {
-      scenesData = await generateScenes(newScriptText, newHook);
-    } catch (err) {
-      console.error('Failed to generate scenes after applying hook:', err);
-      throw new Error('Script was updated, but failed to automatically regenerate scenes. Please regenerate scenes manually.');
-    }
+    // 2. Fetch the FIRST scene to update it
+    const { data: scenes } = await supabase
+      .from('scenes')
+      .select('id, narration')
+      .eq('script_id', scriptId)
+      .order('order_index', { ascending: true })
+      .limit(1);
 
-    if (scenesData && scenesData.length > 0) {
-      // Hook Preservation: Override scene 1 narration explicitly to guarantee no LLM drift
-      scenesData[0].narration = newHook;
+    let originalIntro = '';
 
-      // 3. Delete old scenes (this will cascade delete storyboards and assets)
-      await supabase.from('scenes').delete().eq('script_id', scriptId);
+    if (scenes && scenes.length > 0) {
+      originalIntro = scenes[0].narration;
 
-      // 4. Insert new scenes
-      const sceneInserts = scenesData.map((scene: any, index: number) => ({
-        script_id: scriptId,
-        narration: scene.narration,
-        duration: scene.duration,
-        image_prompt: scene.imagePrompt,
-        animation_type: scene.animationType,
-        order_index: index,
-      }));
+      // 3. Update ONLY the first scene with the new hook and new visual prompt
+      await supabase.from('scenes').update({
+        narration: newHook,
+        image_prompt: parsed.newSceneImagePrompt
+      }).eq('id', scenes[0].id);
 
-      await supabase.from('scenes').insert(sceneInserts);
-
-      // 5. Invalidate status so user must generate assets again
+      // 4. Delete storyboards and assets ONLY for the first scene
+      // Wait, deleting the scene cascades. Since we just update it, we must manually delete its child assets if they exist, or let the user regenerate.
+      // Easiest is to set status to scenes_planned so it triggers regeneration of storyboards.
       await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
     }
+    
+    revalidatePath(`/dashboard/topics/${topicId}`);
+    return { originalIntro, newHook };
   }
   
   revalidatePath(`/dashboard/topics/${topicId}`);
+  return { originalIntro: '', newHook };
 }
 
 // 3. Optimize Script
@@ -145,28 +153,36 @@ export async function optimizeScript(topicId: string, scriptId: string) {
     throw new Error('Script not found.');
   }
 
-  const scriptText = topic.scripts[0].script_text;
-
   const targetSceneCount = topic.scene_count || 10;
+  const sentencesPerScene = topic.sentences_per_scene || '2-3';
+  const scriptText = topic.scripts[0].script_text;
 
   const prompt = `
 You are an expert YouTube script editor focused on maximizing audience retention.
 Your ONLY job is to refine and polish the following script.
 
 CRITICAL RULES:
-1. Do NOT rewrite or significantly expand the script.
-2. Keep the total length within ±10% of the original.
-3. Preserve the exact same story structure and preserve exactly ${targetSceneCount} logical scenes.
-4. Focus ONLY on improving clarity, pacing, transitions, curiosity gaps, and storytelling engagement.
-5. Do NOT add unnecessary new content or completely restructure the narrative.
+1. Do NOT reduce the total sentence count. You may improve the phrasing or slightly expand the length, but NEVER shorten the script.
+2. Preserve the exact same story structure.
+3. The script MUST be formatted into exactly ${targetSceneCount} logical scenes.
+4. Each scene MUST contain exactly ${sentencesPerScene} sentences.
+5. Focus ONLY on improving clarity, pacing, transitions, curiosity gaps, and storytelling engagement.
+6. Write a highly detailed 16:9 cinematic image prompt for each scene.
 
 Original Script:
 "${scriptText}"
 
 Respond ONLY with a JSON object:
 {
-  "optimizedScriptText": "The full revised script.",
-  "changesSummary": "A short summary of what you improved."
+  "changesSummary": "A short summary of what you improved.",
+  "scenes": [
+    {
+      "narration": "The exact spoken text for this scene.",
+      "imagePrompt": "Cinematic 16:9 photorealistic image of...",
+      "animationType": "zoom_in",
+      "duration": 8
+    }
+  ]
 }
   `;
 
@@ -179,43 +195,47 @@ Respond ONLY with a JSON object:
 
   const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
 
-  if (parsed.optimizedScriptText) {
-    // 1. Update the script text
-    await supabase.from('scripts').update({ script_text: parsed.optimizedScriptText }).eq('id', scriptId);
+  if (parsed.scenes && Array.isArray(parsed.scenes)) {
+    // 1. Programmatically enforce the scene count on the merged output
+    const { enforceSceneCount } = await import('@/services/ai');
+    let scenesData = enforceSceneCount(parsed.scenes, targetSceneCount);
 
-    // 2. Safe regeneration: Attempt to generate new scenes
-    const { generateScenes } = await import('@/services/ai');
-    let scenesData = null;
-    try {
-      scenesData = await generateScenes(parsed.optimizedScriptText, undefined, topic.scene_count || 10);
-    } catch (err) {
-      console.error('Failed to generate scenes after optimizing script:', err);
-      throw new Error('Script was updated, but failed to automatically regenerate scenes. Please regenerate scenes manually.');
-    }
+    // 2. Reconstruct script text
+    const optimizedScriptText = scenesData.map((s: any) => s.narration).join('\n\n');
 
-    if (scenesData && scenesData.length > 0) {
-      // 3. Delete old scenes (this will cascade delete storyboards and assets)
-      await supabase.from('scenes').delete().eq('script_id', scriptId);
+    // 3. Update the script text
+    await supabase.from('scripts').update({ script_text: optimizedScriptText }).eq('id', scriptId);
 
-      // 4. Insert new scenes
-      const sceneInserts = scenesData.map((scene: any, index: number) => ({
-        script_id: scriptId,
-        narration: scene.narration,
-        duration: scene.duration,
-        image_prompt: scene.imagePrompt,
-        animation_type: scene.animationType,
-        order_index: index,
-      }));
+    // 4. Delete old scenes (this will cascade delete storyboards and assets)
+    await supabase.from('scenes').delete().eq('script_id', scriptId);
 
-      await supabase.from('scenes').insert(sceneInserts);
+    // 5. Insert new scenes
+    const sceneInserts = scenesData.map((scene: any, index: number) => ({
+      script_id: scriptId,
+      narration: scene.narration,
+      duration: scene.duration,
+      image_prompt: scene.imagePrompt,
+      animation_type: scene.animationType,
+      order_index: index,
+    }));
 
-      // 5. Invalidate status so user must generate assets again
-      await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
-    }
+    const { error: scenesError } = await supabase
+      .from('scenes')
+      .insert(sceneInserts);
+
+    if (scenesError) throw scenesError;
+
+    // 6. Reset topic status
+    await supabase.from('topics').update({ status: 'scenes_planned' }).eq('id', topicId);
+
+    return {
+      summary: parsed.changesSummary,
+      originalScript: scriptText,
+      newScript: optimizedScriptText
+    };
   }
 
-  revalidatePath(`/dashboard/topics/${topicId}`);
-  return parsed.changesSummary;
+  return { summary: "Failed to parse scenes from optimizer output", originalScript: scriptText, newScript: scriptText };
 }
 
 // 4. Run Producer Review

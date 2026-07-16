@@ -8,13 +8,13 @@ import { Sparkles, Check, X } from 'lucide-react';
 export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, scriptId: string }) {
   const [isPending, startTransition] = useTransition();
   const [hooks, setHooks] = useState<any[]>([]);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<{ originalIntro: string, newHook: string } | null>(null);
 
   const handleGenerate = () => {
     startTransition(async () => {
       try {
-        const result = await generateMultipleHooks(topicId);
-        setHooks(result);
+        const generatedHooks = await generateMultipleHooks(topicId);
+        setHooks(generatedHooks);
       } catch (error: any) {
         alert(error.message || 'Failed to generate hooks');
       }
@@ -22,12 +22,12 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
   };
 
   const handleApply = (hookText: string) => {
-    if (confirm('Replace the beginning of your script with this hook?')) {
+    if (confirm('Apply this hook to Scene 1?')) {
       startTransition(async () => {
         try {
-          await applyHook(topicId, scriptId, hookText);
+          const res = await applyHook(topicId, scriptId, hookText);
           setHooks([]);
-          setSuccessMessage('Hook applied successfully!\n\nYour script has changed. Existing scenes are outdated and will be regenerated.');
+          setResult(res as any);
         } catch (error: any) {
           alert(error.message || 'Failed to apply hook');
         }
@@ -36,18 +36,18 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
   };
 
   return (
-    <div>
+    <>
       <Button variant="secondary" onClick={handleGenerate} disabled={isPending}>
         <Sparkles style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
         {isPending && hooks.length === 0 ? 'Generating...' : 'Generate Hooks'}
       </Button>
 
-      {successMessage && (
+      {result && (
         <div style={{
           position: 'fixed',
           bottom: '2rem',
           right: '2rem',
-          width: '400px',
+          width: '800px',
           maxWidth: '90vw',
           backgroundColor: '#1f2937',
           border: '1px solid #10b981',
@@ -62,15 +62,27 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ margin: 0, color: '#10b981', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Check size={20} />
-              Success
+              Hook Applied Successfully
             </h4>
-            <button onClick={() => setSuccessMessage(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>
+            <button onClick={() => setResult(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>
               <X size={20} />
             </button>
           </div>
-          <p style={{ margin: 0, color: '#d1d5db', fontSize: '0.9rem', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
-            {successMessage}
-          </p>
+          
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ flex: 1, backgroundColor: '#111827', padding: '1rem', borderRadius: '0.25rem', border: '1px solid #374151' }}>
+              <h5 style={{ margin: '0 0 0.5rem 0', color: '#f87171' }}>Original Intro</h5>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', color: '#9ca3af' }}>
+                {result.originalIntro}
+              </div>
+            </div>
+            <div style={{ flex: 1, backgroundColor: '#111827', padding: '1rem', borderRadius: '0.25rem', border: '1px solid #374151' }}>
+              <h5 style={{ margin: '0 0 0.5rem 0', color: '#34d399' }}>New Hook</h5>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', color: '#d1d5db' }}>
+                {result.newHook}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -112,6 +124,6 @@ export function GenerateHooksButton({ topicId, scriptId }: { topicId: string, sc
       {hooks.length > 0 && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 99 }} onClick={() => setHooks([])} />
       )}
-    </div>
+    </>
   );
 }

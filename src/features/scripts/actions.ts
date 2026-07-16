@@ -21,12 +21,16 @@ export async function generateScriptAndScenes(topicId: string) {
 
   const researchContent = topic.research[0].content;
   const targetSceneCount = topic.scene_count || 10;
+  const sentencesPerScene = topic.sentences_per_scene || '2-3';
 
   try {
-    // 2. Generate Script
-    const scriptData = await generateScript(researchContent, targetSceneCount);
+    // 2. Generate Script & Scenes together (Optimized 1 API Call)
+    const scriptData = await generateScript(researchContent, targetSceneCount, sentencesPerScene);
 
-    // 3. Insert Script
+    // 3. Reconstruct scriptText
+    const scriptText = scriptData.scenes.map((s: any) => s.narration).join('\n\n');
+
+    // 4. Insert Script
     const { data: insertedScript, error: scriptError } = await supabase
       .from('scripts')
       .insert({
@@ -35,18 +39,15 @@ export async function generateScriptAndScenes(topicId: string) {
         description: scriptData.description,
         tags: scriptData.tags,
         chapters: scriptData.chapters,
-        script_text: scriptData.scriptText,
+        script_text: scriptText,
       })
       .select('id')
       .single();
 
     if (scriptError) throw scriptError;
 
-    // 4. Generate Scenes from Script Text
-    const scenesData = await generateScenes(scriptData.scriptText, undefined, targetSceneCount);
-
     // 5. Insert Scenes
-    const sceneInserts = scenesData.map((scene: any, index: number) => ({
+    const sceneInserts = scriptData.scenes.map((scene: any, index: number) => ({
       script_id: insertedScript.id,
       narration: scene.narration,
       duration: scene.duration,

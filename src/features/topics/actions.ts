@@ -19,6 +19,7 @@ export async function createTopicAndResearch(formData: FormData) {
   }
 
   const sceneCount = parseInt(formData.get('sceneCount') as string) || 10;
+  const sentencesPerScene = formData.get('sentencesPerScene') as string || '2-3';
 
   // 1. Get or create a default channel for the user
   let { data: channel } = await supabase
@@ -46,6 +47,7 @@ export async function createTopicAndResearch(formData: FormData) {
       title,
       status: 'researching',
       scene_count: sceneCount,
+      sentences_per_scene: sentencesPerScene,
     })
     .select('id')
     .single();

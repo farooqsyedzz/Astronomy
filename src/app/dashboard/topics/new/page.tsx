@@ -77,6 +77,21 @@ export default function NewTopicPage() {
               </select>
             </div>
 
+            <div className={styles.inputGroup}>
+              <label htmlFor="sentencesPerScene">Sentences Per Scene</label>
+              <select 
+                id="sentencesPerScene"
+                name="sentencesPerScene"
+                className={styles.input}
+                defaultValue="2-3"
+                disabled={isSubmitting}
+              >
+                <option value="1-2">1-2 sentences (Fast Paced)</option>
+                <option value="2-3">2-3 sentences (Standard)</option>
+                <option value="3-4">3-4 sentences (Detailed)</option>
+              </select>
+            </div>
+
             {error && <p className={styles.error}>{error}</p>}
 
             <Button 
