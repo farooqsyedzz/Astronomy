@@ -303,7 +303,7 @@ async function renderVideo() {
 
     // 3. Concatenate scenes
     const concatFile = path.join(tempDir, 'concat.txt');
-    const concatContent = sceneVideos.map(vid => `file '${vid}'`).join('\n');
+    const concatContent = sceneVideos.map(vid => `file '${vid}'`).join('\n') + '\n';
     await fs.writeFile(concatFile, concatContent);
 
     const concatenatedPath = path.join(tempDir, 'concatenated.mp4');

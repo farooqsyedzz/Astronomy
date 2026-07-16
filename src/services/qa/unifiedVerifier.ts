@@ -89,7 +89,7 @@ Return a JSON object with this exact structure:
     "passed": true/false,
     "issues": ["1-line max"],
     "recommendations": ["1-line max"],
-    "auto_fixes": [ { "scene_id": "...", "problem": "...", "fixed_prompt": "..." } ]
+    "auto_fixes": [ { "scene_order": 0, "problem": "...", "fixed_prompt": "..." } ]
   },
   "thumbnail_result": { "score": 0-100, "confidence": 0-100, "passed": true/false, "issues": ["1-line max"], "recommendations": ["1-line max"] },
   "seo_result": { "score": 0-100, "confidence": 0-100, "passed": true/false, "issues": ["1-line max"], "recommendations": ["1-line max"] }

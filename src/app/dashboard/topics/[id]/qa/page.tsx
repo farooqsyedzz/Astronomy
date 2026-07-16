@@ -134,10 +134,7 @@ export default async function QADashboardPage({ params, searchParams }: { params
                     <p style={{ fontWeight: 'bold', margin: '0 0 0.5rem 0', color: '#3b82f6' }}>Auto-Fix Available (Image):</p>
                     <p style={{ margin: 0, color: 'var(--foreground)' }}><strong>Problem:</strong> {run.auto_fix.problem}</p>
                     <p style={{ margin: '0.5rem 0 0 0', color: 'var(--foreground)' }}><strong>Proposed Fix:</strong> {run.auto_fix.fixed_prompt}</p>
-                    <form action="/api/qa/autofix" method="POST" style={{ marginTop: '1rem' }}>
-                      <input type="hidden" name="moduleId" value={run.id} />
-                      <input type="hidden" name="type" value="image" />
-                      <input type="hidden" name="sceneId" value={run.auto_fix.scene_id} />
+                    <form action={async () => { 'use server'; const { applyImageFixAction } = await import('@/features/qa/actions'); await applyImageFixAction(run.id, run.auto_fix.scene_order ?? run.auto_fix.scene_id); }} style={{ marginTop: '1rem' }}>
                       <button type="submit" style={{ padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>
                         Apply Image Fix
                       </button>
@@ -158,9 +155,7 @@ export default async function QADashboardPage({ params, searchParams }: { params
                         </li>
                       ))}
                     </ul>
-                    <form action="/api/qa/autofix" method="POST" style={{ marginTop: '1rem' }}>
-                      <input type="hidden" name="moduleId" value={run.id} />
-                      <input type="hidden" name="type" value="script" />
+                    <form action={async () => { 'use server'; const { applyScriptFixesAction } = await import('@/features/qa/actions'); await applyScriptFixesAction(run.id); }} style={{ marginTop: '1rem' }}>
                       <button type="submit" style={{ padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>
                         Apply All Script Fixes
                       </button>
