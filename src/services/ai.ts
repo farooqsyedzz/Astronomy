@@ -1,12 +1,12 @@
 import OpenAI from 'openai';
 
-const client = new OpenAI({
+export const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
   baseURL: 'https://openrouter.ai/api/v1',
 });
 
 // We default to a strong free model on OpenRouter, like deepseek-chat or llama-3.
-const DEFAULT_MODEL = 'openrouter/free';
+export const DEFAULT_MODEL = 'openrouter/free';
 
 /**
  * Robustly parse JSON from LLM output, handling common issues:
@@ -82,7 +82,13 @@ Your output must be a valid JSON object with the exact following structure:
   "keyPoints": ["point 1", "point 2", "point 3", "point 4", "point 5"],
   "targetAudience": "Description of the target audience",
   "searchIntent": "Why are people searching for this?",
-  "competitorAnalysis": "What are existing videos doing? What is the gap?",
+  "competitorAnalysis": {
+    "commonTitles": ["Example Title 1", "Example Title 2"],
+    "thumbnailStyles": "What thumbnail styles are common?",
+    "missingInformation": "What information do competitors miss?",
+    "uniqueAngle": "What unique angle can our video take?",
+    "differentiation": "How can we differentiate our video without copying?"
+  },
   "suggestedTitles": ["Title 1", "Title 2", "Title 3"],
   "potentialHooks": ["Hook 1", "Hook 2", "Hook 3"]
 }

@@ -17,6 +17,10 @@ import { GenerateStoryboardButton } from './GenerateStoryboardButton';
 import { DirectorChat } from './DirectorChat';
 import { DeleteVideoButton } from './DeleteVideoButton';
 import { DeleteTopicButton } from '../DeleteTopicButton';
+import { ProducerReviewSection } from './ProducerReviewSection';
+import { ThumbnailsSection } from './ThumbnailsSection';
+import { OptimizeScriptButton } from './OptimizeScriptButton';
+import { GenerateHooksButton } from './GenerateHooksButton';
 
 export default async function TopicDetailPage({
   params,
@@ -30,7 +34,7 @@ export default async function TopicDetailPage({
   // Fetch Topic along with nested relations all the way to Assets
   const { data: topic, error: topicError } = await supabase
     .from('topics')
-    .select('*, research(content), scripts(*, scenes(*, assets(*))), videos(*)')
+    .select('*, research(content), scripts(*, scenes(*, assets(*))), videos(*), producer_reviews(*), thumbnails(*)')
     .eq('id', id)
     .single();
 
@@ -105,6 +109,20 @@ export default async function TopicDetailPage({
         </div>
       </header>
 
+      {hasScript && (
+        <>
+          <ProducerReviewSection 
+            topicId={topic.id} 
+            initialScore={topic.readiness_score || null} 
+            reviews={topic.producer_reviews?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || []} 
+          />
+          <ThumbnailsSection 
+            topicId={topic.id}
+            thumbnails={topic.thumbnails?.sort((a: any, b: any) => b.estimated_ctr - a.estimated_ctr) || []}
+          />
+        </>
+      )}
+
       {video && (
         <Card className={styles.finalVideoCard}>
           <CardHeader style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -136,7 +154,17 @@ export default async function TopicDetailPage({
               </ul>
               
               <h4 className={styles.subheading}>Competitor Analysis</h4>
-              <p className={styles.paragraph}>{research.competitorAnalysis}</p>
+              {typeof research.competitorAnalysis === 'string' ? (
+                <p className={styles.paragraph}>{research.competitorAnalysis}</p>
+              ) : research.competitorAnalysis ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: '#ccc' }}>
+                  <div><strong>Common Titles:</strong> {research.competitorAnalysis.commonTitles?.join(', ')}</div>
+                  <div><strong>Thumbnail Styles:</strong> {research.competitorAnalysis.thumbnailStyles}</div>
+                  <div><strong>Missing Info:</strong> {research.competitorAnalysis.missingInformation}</div>
+                  <div><strong>Unique Angle:</strong> {research.competitorAnalysis.uniqueAngle}</div>
+                  <div><strong>Differentiation:</strong> {research.competitorAnalysis.differentiation}</div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
           
@@ -168,12 +196,29 @@ export default async function TopicDetailPage({
 
       {hasScript && (
         <div className={styles.scriptContainer}>
-          <div className={styles.scriptHeader}>
-            <h3 className={styles.sectionTitle}>Video Script & Scenes</h3>
-            <p className={styles.scriptMeta}>
-              Title: {script.title} | {scenes.length} Scenes
-            </p>
+          <div className={styles.scriptHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 className={styles.sectionTitle}>Video Script & Scenes</h3>
+              <p className={styles.scriptMeta}>
+                Title: {script.title} | {scenes.length} Scenes
+              </p>
+            </div>
+            <div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <OptimizeScriptButton topicId={topic.id} scriptId={script.id} />
+                <GenerateHooksButton topicId={topic.id} scriptId={script.id} />
+              </div>
+            </div>
           </div>
+
+          <Card className={styles.sceneCard} style={{ marginBottom: '2rem' }}>
+            <CardHeader>
+              <CardTitle>Raw Script</CardTitle>
+            </CardHeader>
+            <CardContent style={{ padding: '1.5rem', whiteSpace: 'pre-wrap', color: '#d1d5db', lineHeight: 1.6 }}>
+              {script.script_text}
+            </CardContent>
+          </Card>
 
           <div className={styles.scenesList}>
             {scenes.map((scene: any) => {
