@@ -441,7 +441,7 @@ async function renderVideo() {
       const { data, error: videoError } = await supabase
         .from('videos')
         .update({
-          final_video_url: urlData.publicUrl,
+          final_video_url: `${urlData.publicUrl}?v=${Date.now()}`,
           status: 'ready'
         })
         .eq('id', existingVideo.id)
@@ -454,7 +454,7 @@ async function renderVideo() {
         .from('videos')
         .insert({
           topic_id: topicId,
-          final_video_url: urlData.publicUrl,
+          final_video_url: `${urlData.publicUrl}?v=${Date.now()}`,
           status: 'ready'
         })
         .select()

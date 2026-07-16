@@ -103,8 +103,10 @@ export async function regenerateMissingAssetsAction(topicId: string) {
 }
 
 export async function reRenderVideoAction(topicId: string) {
-  // We DO NOT delete the old video record here, because QA reports are linked to the video_id.
-  // Instead, we just trigger the render pipeline, and render.js will UPSERT the video file and update the existing DB record.
+  // 1. Automatically generate any missing assets (e.g., if an asset was deleted by auto-fix)
+  await generateAssets(topicId);
+
+  // 2. Trigger the render pipeline
   await triggerRenderPipeline(topicId);
   redirect(`/dashboard/topics/${topicId}`);
 }
