@@ -105,7 +105,12 @@ Respond ONLY with a JSON object:
       max_tokens: 8000,
     });
 
-    const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+    let parsed: any = {};
+    try {
+      parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+    } catch (e) {
+      console.warn(`JSON parse failed on applyHook attempt ${attempts}`);
+    }
     
     if (parsed.restOfScript && parsed.newSceneImagePrompt) {
       const newScriptText = newHook + '\n\n' + parsed.restOfScript;
@@ -232,7 +237,12 @@ Respond ONLY with a JSON object:
       max_tokens: 8000,
     });
 
-    const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+    let parsed: any = {};
+    try {
+      parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+    } catch (e) {
+      console.warn(`JSON parse failed on optimize attempt ${attempts}`);
+    }
 
     if (parsed.scenes && Array.isArray(parsed.scenes)) {
       // 1. Programmatically enforce the scene count on the merged output

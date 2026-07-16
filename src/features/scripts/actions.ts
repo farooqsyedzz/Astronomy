@@ -31,11 +31,19 @@ export async function generateScriptAndScenes(topicId: string) {
 
     while (attempts <= maxRetries) {
       attempts++;
-      // 2. Generate Script & Scenes together (Optimized 1 API Call)
-      scriptData = await generateScript(researchContent, targetSceneCount, sentencesPerScene, topic.title);
+      try {
+        // 2. Generate Script & Scenes together (Optimized 1 API Call)
+        scriptData = await generateScript(researchContent, targetSceneCount, sentencesPerScene, topic.title);
+      } catch (genError: any) {
+        console.warn(`Generation or JSON parse failed on attempt ${attempts}:`, genError);
+        if (attempts > maxRetries) {
+          throw new Error(`Failed to generate script: ${genError.message}`);
+        }
+        continue;
+      }
 
       // Reconstruct scriptText for validation
-      const scriptTextForValidation = scriptData.scenes.map((s: any) => s.narration).join('\n\n');
+      const scriptTextForValidation = scriptData?.scenes?.map((s: any) => s.narration).join('\n\n') || '';
 
       const validationResult = await validateTopic(topic.title, scriptTextForValidation);
       if (validationResult.score >= 90) {
