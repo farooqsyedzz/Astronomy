@@ -15,6 +15,13 @@ if (topicIdIndex === -1 || !args[topicIdIndex + 1]) {
 }
 const topicId = args[topicIdIndex + 1];
 
+const subtitlesIndex = args.indexOf('--subtitles');
+const disableSubtitles = subtitlesIndex !== -1 && args[subtitlesIndex + 1] === 'false';
+// Override config if explicitly passed
+if (disableSubtitles) {
+  config.subtitles.enabled = false;
+}
+
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -103,22 +110,31 @@ function buildZoompanFilter(movement, duration, zoomIntensity) {
 
 async function generateSrt(narration, duration, srtPath) {
   const words = narration.split(' ');
-  const wordsPerChunk = config.subtitles.wordsPerChunk || 4;
+  const wordsPerChunk = config.subtitles.wordsPerChunk || 5;
   const chunks = [];
 
   for (let j = 0; j < words.length; j += wordsPerChunk) {
     chunks.push(words.slice(j, j + wordsPerChunk).join(' '));
   }
 
-  const timePerChunk = duration / chunks.length;
+  // Calculate total characters (excluding spaces between chunks, though keeping it simple is fine)
+  const totalChars = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const timePerChar = duration / totalChars;
+  
   let srtContent = '';
+  let currentTime = 0;
 
   for (let j = 0; j < chunks.length; j++) {
-    const startTime = j * timePerChunk;
-    const endTime = (j + 1) * timePerChunk;
+    const chunk = chunks[j];
+    const chunkDuration = chunk.length * timePerChar;
+    const startTime = currentTime;
+    const endTime = currentTime + chunkDuration;
+    
     srtContent += `${j + 1}\n`;
     srtContent += `${formatSrtTime(startTime)} --> ${formatSrtTime(endTime)}\n`;
-    srtContent += `${chunks[j]}\n\n`;
+    srtContent += `${chunk}\n\n`;
+    
+    currentTime = endTime;
   }
 
   await fs.writeFile(srtPath, srtContent);

@@ -15,6 +15,8 @@ import { GenerateAssetsButton } from './GenerateAssetsButton';
 import { RenderVideoButton } from './RenderVideoButton';
 import { GenerateStoryboardButton } from './GenerateStoryboardButton';
 import { DirectorChat } from './DirectorChat';
+import { DeleteVideoButton } from './DeleteVideoButton';
+import { DeleteTopicButton } from '../DeleteTopicButton';
 
 export default async function TopicDetailPage({
   params,
@@ -72,6 +74,7 @@ export default async function TopicDetailPage({
         </div>
         
         <div className={styles.headerActions}>
+          <DeleteTopicButton topicId={topic.id} />
           <Button variant="secondary">
             <Edit3 className={styles.iconSm} />
             Edit Topic
@@ -104,8 +107,9 @@ export default async function TopicDetailPage({
 
       {video && (
         <Card className={styles.finalVideoCard}>
-          <CardHeader>
+          <CardHeader style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <CardTitle>Final Rendered Video</CardTitle>
+            <DeleteVideoButton topicId={topic.id} videoId={video.id} videoUrl={video.final_video_url} />
           </CardHeader>
           <CardContent>
             <video controls className={styles.finalVideoPlayer} src={video.final_video_url}>

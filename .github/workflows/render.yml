@@ -7,6 +7,11 @@ on:
         description: 'The ID of the topic to render'
         required: true
         type: string
+      subtitles:
+        description: 'Enable subtitles (true/false)'
+        required: false
+        default: 'true'
+        type: string
 
 jobs:
   render:
@@ -51,4 +56,4 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/render.js --topicId "${{ github.event.inputs.topicId }}"
+        run: node scripts/render.js --topicId "${{ github.event.inputs.topicId }}" --subtitles "${{ github.event.inputs.subtitles }}"

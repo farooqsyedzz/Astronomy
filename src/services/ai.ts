@@ -42,6 +42,7 @@ export async function runQACompletion(prompt: string, model: string = DEFAULT_MO
       model,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
+      max_tokens: 8000,
     });
     
     const text = response?.choices?.[0]?.message?.content;
@@ -94,6 +95,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
       model: DEFAULT_MODEL,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
+      max_tokens: 8000,
     });
 
     const text = response.choices[0]?.message?.content;
@@ -141,6 +143,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
       model: DEFAULT_MODEL,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
+      max_tokens: 8000,
     });
 
     const text = response.choices[0]?.message?.content;
@@ -187,9 +190,7 @@ Respond ONLY with valid JSON (an array). Do not include markdown formatting like
     const response = await client.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: [{ role: 'user', content: prompt }],
-      // response_format json_object requires the output to be an object, but we ask for an array.
-      // To be safe with strict JSON mode, it's better to wrap the array in an object, but let's try raw first, 
-      // or we can remove response_format if the model fails to return an array.
+      max_tokens: 8000,
     });
 
     let text = response.choices[0]?.message?.content;

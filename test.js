@@ -6,20 +6,25 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  // Delete the older duplicate video for this topic
-  const { data: videos } = await supabase
-    .from('videos')
-    .select('id, created_at')
-    .eq('topic_id', 'c393e21e-77f4-44ce-aff4-506fb65ded34')
-    .order('created_at', { ascending: false });
+  const { data: topic } = await supabase
+    .from('topics')
+    .select('scripts(scenes(id, assets(id, type, file_url)))')
+    .eq('id', 'c393e21e-77f4-44ce-aff4-506fb65ded34')
+    .single();
     
-  console.log('Videos found:', videos?.length);
-  if (videos && videos.length > 1) {
-    const idsToDelete = videos.slice(1).map(v => v.id);
-    const { error } = await supabase.from('videos').delete().in('id', idsToDelete);
-    console.log('Deleted duplicates:', idsToDelete, 'Error:', error);
-  } else {
-    console.log('No duplicates to clean.');
+  let updatedCount = 0;
+  for (const scene of topic?.scripts?.[0]?.scenes || []) {
+    for (const asset of scene.assets || []) {
+      if (!asset.file_url.includes('?v=')) {
+        await supabase
+          .from('assets')
+          .update({ file_url: `${asset.file_url}?v=${Date.now()}` })
+          .eq('id', asset.id);
+        updatedCount++;
+      }
+    }
   }
+  
+  console.log(`Updated ${updatedCount} assets with cache-busting timestamp.`);
 }
 test();

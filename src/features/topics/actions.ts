@@ -76,3 +76,36 @@ export async function createTopicAndResearch(formData: FormData) {
   revalidatePath('/dashboard/topics');
   redirect(`/dashboard/topics/${topic.id}`);
 }
+
+export async function deleteTopic(topicId: string) {
+  const supabase = await createClient();
+
+  // 1. List all files in the topic folder in storage
+  const { data: files, error: listError } = await supabase.storage
+    .from('assets')
+    .list(topicId);
+
+  // 2. Delete files from storage
+  if (files && files.length > 0) {
+    const filePaths = files.map(file => `${topicId}/${file.name}`);
+    const { error: removeError } = await supabase.storage
+      .from('assets')
+      .remove(filePaths);
+    if (removeError) {
+      console.error('Failed to delete storage files:', removeError);
+    }
+  }
+
+  // 3. Delete the topic from DB (this cascades to scripts, scenes, assets, videos, research)
+  const { error: dbError } = await supabase
+    .from('topics')
+    .delete()
+    .eq('id', topicId);
+
+  if (dbError) {
+    throw new Error('Failed to delete topic from database');
+  }
+
+  revalidatePath('/dashboard/topics');
+  redirect('/dashboard/topics');
+}

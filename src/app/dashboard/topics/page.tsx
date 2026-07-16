@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Plus, Search, FileText } from 'lucide-react';
 import styles from './topics.module.css';
 
+import { DeleteTopicButton } from './DeleteTopicButton';
+
 export default async function TopicsPage() {
   const supabase = await createClient();
   
@@ -37,8 +39,9 @@ export default async function TopicsPage() {
           {topics.map((topic) => (
             <Link key={topic.id} href={`/dashboard/topics/${topic.id}`}>
               <Card className={styles.topicCard}>
-                <CardHeader>
+                <CardHeader style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <CardTitle>{topic.title}</CardTitle>
+                  <DeleteTopicButton topicId={topic.id} compact={true} />
                 </CardHeader>
                 <CardContent>
                   <div className={styles.meta}>
