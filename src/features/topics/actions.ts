@@ -18,6 +18,8 @@ export async function createTopicAndResearch(formData: FormData) {
     throw new Error('Title is required');
   }
 
+  const sceneCount = parseInt(formData.get('sceneCount') as string) || 10;
+
   // 1. Get or create a default channel for the user
   let { data: channel } = await supabase
     .from('channels')
@@ -43,6 +45,7 @@ export async function createTopicAndResearch(formData: FormData) {
       channel_id: channel.id,
       title,
       status: 'researching',
+      scene_count: sceneCount,
     })
     .select('id')
     .single();

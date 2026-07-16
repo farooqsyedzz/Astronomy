@@ -116,23 +116,20 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
   }
 }
 
-export async function generateScript(researchContent: any): Promise<any> {
+export async function generateScript(researchContent: string, sceneCount: number = 10): Promise<any> {
   const prompt = `
-You are an expert YouTube scriptwriter. Your job is to take the provided research and write a highly engaging, educational documentary-style script for a faceless YouTube channel.
+You are an expert documentary scriptwriter for YouTube.
+Using the following research, write a highly engaging, educational, and cinematic video script.
 
-Research Data:
-${JSON.stringify(researchContent, null, 2)}
+CRITICAL RULE: The script MUST be formatted and paced to perfectly fit exactly ${sceneCount} visual scenes. Do not deviate from this length.
 
-Requirements:
-1. The script should be formatted for a 3-5 minute video.
-2. Hook the viewer in the first 10 seconds.
-3. Write naturally for a voiceover (use simple language, short sentences).
-4. Do not include camera directions or scene descriptions in the script text, ONLY the words to be spoken.
+Research:
+${researchContent}
 
-Your output must be a valid JSON object with the following structure:
+Respond ONLY with a valid JSON object matching this structure:
 {
-  "title": "Final selected title for the video",
-  "description": "SEO optimized description for YouTube",
+  "title": "A highly clickable YouTube title",
+  "description": "A 2-sentence video description",
   "tags": ["tag1", "tag2", "tag3"],
   "scriptText": "The entire spoken script as a single long string, without scene markers.",
   "chapters": [
@@ -164,7 +161,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
   }
 }
 
-export async function generateScenes(scriptText: string, hookText?: string): Promise<any> {
+export async function generateScenes(scriptText: string, hookText?: string, targetSceneCount: number = 10): Promise<any> {
   const prompt = `
 You are an expert YouTube video director. I will give you the voiceover script for a faceless educational YouTube video.
 Your job is to break the script down into individual scenes and plan the visuals (images) for each scene.
@@ -173,8 +170,8 @@ Script:
 "${scriptText}"
 
 Rules:
-1. Break the script into logical visual scenes (each scene should be 5-15 seconds of narration).
-2. For each scene, extract the exact narration text that belongs to that scene.
+1. Break the script into EXACTLY ${targetSceneCount} visual scenes. This is a strict requirement.
+2. For each scene, extract the exact narration text that belongs to that scene. Do not leave any script text behind.
 3. Write a highly detailed, descriptive image generation prompt for the visual of that scene. The prompt should be suitable for an AI image generator (like Midjourney or DALL-E) to create a cinematic, photorealistic 16:9 image.
 4. Specify a subtle camera animation type for the image (e.g., 'pan_right', 'zoom_in', 'static', 'pan_left').
 5. Estimate the duration of the scene based on the narration length (assume normal speaking pace).
@@ -197,15 +194,79 @@ Respond ONLY with valid JSON (an array). Do not include markdown formatting like
     const response = await client.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
       max_tokens: 8000,
     });
 
-    let text = response.choices[0]?.message?.content;
-    if (text) {
-      return robustParseJSON(text);
+    let parsed = robustParseJSON(response.choices[0]?.message?.content || '[]');
+  
+    // If the LLM returned an object with a scenes array, extract it
+    if (!Array.isArray(parsed) && parsed.scenes && Array.isArray(parsed.scenes)) {
+      parsed = parsed.scenes;
+    } else if (!Array.isArray(parsed) && Object.values(parsed).length === 1 && Array.isArray(Object.values(parsed)[0])) {
+      parsed = Object.values(parsed)[0];
     }
     
-    throw new Error("No response text from OpenRouter");
+    if (!Array.isArray(parsed)) {
+      throw new Error('LLM failed to return a valid JSON array of scenes.');
+    }
+
+    // Programmatic Enforcement of Scene Count
+    while (parsed.length > targetSceneCount) {
+      // Too many scenes: merge the shortest adjacent scenes
+      let minCombinedLen = Infinity;
+      let mergeIdx = 0;
+      for (let i = 0; i < parsed.length - 1; i++) {
+        const len = parsed[i].narration.length + parsed[i+1].narration.length;
+        if (len < minCombinedLen) {
+          minCombinedLen = len;
+          mergeIdx = i;
+        }
+      }
+      // Merge mergeIdx and mergeIdx + 1
+      parsed[mergeIdx].narration += " " + parsed[mergeIdx + 1].narration;
+      parsed[mergeIdx].duration += parsed[mergeIdx + 1].duration;
+      // Keep image prompt of the first one
+      parsed.splice(mergeIdx + 1, 1);
+    }
+
+    while (parsed.length < targetSceneCount && parsed.length > 0) {
+      // Too few scenes: split the longest scene
+      let maxLen = 0;
+      let splitIdx = 0;
+      for (let i = 0; i < parsed.length; i++) {
+        if (parsed[i].narration.length > maxLen) {
+          maxLen = parsed[i].narration.length;
+          splitIdx = i;
+        }
+      }
+      
+      const sceneToSplit = parsed[splitIdx];
+      const sentences = sceneToSplit.narration.split(/(?<=[.?!])\s+/);
+      
+      if (sentences.length > 1) {
+        const half = Math.ceil(sentences.length / 2);
+        const firstHalf = sentences.slice(0, half).join(' ');
+        const secondHalf = sentences.slice(half).join(' ');
+        
+        const newScene = {
+          narration: secondHalf,
+          imagePrompt: sceneToSplit.imagePrompt + " (continued)",
+          animationType: sceneToSplit.animationType,
+          duration: Math.max(2, Math.floor(sceneToSplit.duration / 2))
+        };
+        
+        sceneToSplit.narration = firstHalf;
+        sceneToSplit.duration = Math.max(2, Math.ceil(sceneToSplit.duration / 2));
+        
+        parsed.splice(splitIdx + 1, 0, newScene);
+      } else {
+        // Cannot split by sentence, just break the loop to avoid infinite loop
+        break;
+      }
+    }
+
+    return parsed;
   } catch (error) {
     console.error('Error generating scenes:', error);
     throw new Error('Failed to generate scenes via OpenRouter');

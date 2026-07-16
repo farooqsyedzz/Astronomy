@@ -147,15 +147,18 @@ export async function optimizeScript(topicId: string, scriptId: string) {
 
   const scriptText = topic.scripts[0].script_text;
 
+  const targetSceneCount = topic.scene_count || 10;
+
   const prompt = `
 You are an expert YouTube script editor focused on maximizing audience retention.
-Review the following script and optimize it by:
-1. Adding curiosity gaps between sections.
-2. Improving transitions to maintain pacing.
-3. Injecting surprising facts where appropriate to re-engage the viewer.
-4. Ensuring the vocabulary is accessible but highly engaging.
+Your ONLY job is to refine and polish the following script.
 
-Do NOT change the core scientific facts or the overall length drastically.
+CRITICAL RULES:
+1. Do NOT rewrite or significantly expand the script.
+2. Keep the total length within ±10% of the original.
+3. Preserve the exact same story structure and preserve exactly ${targetSceneCount} logical scenes.
+4. Focus ONLY on improving clarity, pacing, transitions, curiosity gaps, and storytelling engagement.
+5. Do NOT add unnecessary new content or completely restructure the narrative.
 
 Original Script:
 "${scriptText}"
@@ -184,7 +187,7 @@ Respond ONLY with a JSON object:
     const { generateScenes } = await import('@/services/ai');
     let scenesData = null;
     try {
-      scenesData = await generateScenes(parsed.optimizedScriptText);
+      scenesData = await generateScenes(parsed.optimizedScriptText, undefined, topic.scene_count || 10);
     } catch (err) {
       console.error('Failed to generate scenes after optimizing script:', err);
       throw new Error('Script was updated, but failed to automatically regenerate scenes. Please regenerate scenes manually.');

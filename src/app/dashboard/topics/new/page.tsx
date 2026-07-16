@@ -60,6 +60,23 @@ export default function NewTopicPage() {
               />
             </div>
 
+            <div className={styles.inputGroup}>
+              <label htmlFor="sceneCount">Target Scene Count</label>
+              <select 
+                id="sceneCount"
+                name="sceneCount"
+                className={styles.input}
+                defaultValue="10"
+                disabled={isSubmitting}
+              >
+                <option value="8">8 Scenes (Short)</option>
+                <option value="10">10 Scenes (Standard)</option>
+                <option value="12">12 Scenes (Standard)</option>
+                <option value="15">15 Scenes (Long)</option>
+                <option value="20">20 Scenes (Very Long)</option>
+              </select>
+            </div>
+
             {error && <p className={styles.error}>{error}</p>}
 
             <Button 

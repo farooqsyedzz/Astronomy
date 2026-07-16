@@ -20,10 +20,11 @@ export async function generateScriptAndScenes(topicId: string) {
   }
 
   const researchContent = topic.research[0].content;
+  const targetSceneCount = topic.scene_count || 10;
 
   try {
     // 2. Generate Script
-    const scriptData = await generateScript(researchContent);
+    const scriptData = await generateScript(researchContent, targetSceneCount);
 
     // 3. Insert Script
     const { data: insertedScript, error: scriptError } = await supabase
@@ -42,7 +43,7 @@ export async function generateScriptAndScenes(topicId: string) {
     if (scriptError) throw scriptError;
 
     // 4. Generate Scenes from Script Text
-    const scenesData = await generateScenes(scriptData.scriptText);
+    const scenesData = await generateScenes(scriptData.scriptText, undefined, targetSceneCount);
 
     // 5. Insert Scenes
     const sceneInserts = scenesData.map((scene: any, index: number) => ({
