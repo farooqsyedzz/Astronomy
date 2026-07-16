@@ -28,6 +28,19 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
+      - name: Cache BGM and Overlay Assets
+        uses: actions/cache@v4
+        id: cache-cinematic-assets
+        with:
+          path: |
+            public/bgm
+            public/overlays
+          key: cinematic-assets-v1
+
+      - name: Generate BGM and Overlay Assets
+        if: steps.cache-cinematic-assets.outputs.cache-hit != 'true'
+        run: node scripts/generate-assets.js
+
       - name: Run Render Script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

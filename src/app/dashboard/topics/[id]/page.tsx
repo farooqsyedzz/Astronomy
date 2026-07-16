@@ -13,6 +13,7 @@ import styles from './topicDetail.module.css';
 import { GenerateScriptButton } from './GenerateScriptButton';
 import { GenerateAssetsButton } from './GenerateAssetsButton';
 import { RenderVideoButton } from './RenderVideoButton';
+import { GenerateStoryboardButton } from './GenerateStoryboardButton';
 
 export default async function TopicDetailPage({
   params,
@@ -81,15 +82,18 @@ export default async function TopicDetailPage({
              <GenerateAssetsButton topicId={topic.id} disabled={topic.status !== 'scenes_planned'} />
           )}
           {hasAssets && (
+            <>
+             <GenerateStoryboardButton topicId={topic.id} disabled={false} />
              <RenderVideoButton 
                topicId={topic.id} 
                disabled={false} 
                label={topic.status === 'rendering' ? 'Rendering... (Click to Retry)' : video ? 'Re-render Video' : 'Render Video'}
              />
+            </>
           )}
           {video && (
              <Link href={`/dashboard/topics/${topic.id}/qa`} style={{ textDecoration: 'none' }}>
-               <Button variant="default" style={{ backgroundColor: '#8b5cf6', color: 'white' }}>
+               <Button variant="primary" style={{ backgroundColor: '#8b5cf6', color: 'white' }}>
                  View QA Report
                </Button>
              </Link>
@@ -192,6 +196,12 @@ export default async function TopicDetailPage({
                         <div className={styles.badgesRow}>
                           <span className={styles.badge}>{scene.animation_type}</span>
                           <span className={styles.badge}>{scene.duration}s</span>
+                          {scene.storyboard && (
+                            <>
+                              <span className={styles.badge} style={{ backgroundColor: '#a855f7', color: 'white' }}>🎬 {scene.storyboard.camera_movement}</span>
+                              <span className={styles.badge} style={{ backgroundColor: '#6366f1', color: 'white' }}>🎵 {scene.storyboard.bgm_mood}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
