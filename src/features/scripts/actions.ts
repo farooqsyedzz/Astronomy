@@ -34,6 +34,7 @@ export async function generateScriptAndScenes(topicId: string) {
         description: scriptData.description,
         tags: scriptData.tags,
         chapters: scriptData.chapters,
+        script_text: scriptData.scriptText,
       })
       .select('id')
       .single();

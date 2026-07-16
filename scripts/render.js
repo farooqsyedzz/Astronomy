@@ -162,12 +162,38 @@ async function renderVideo() {
     const { data: urlData } = supabase.storage.from('assets').getPublicUrl(storagePath);
     
     // 5. Update DB
-    const { error: videoError } = await supabase.from('videos').insert({
-      topic_id: topicId,
-      final_video_url: urlData.publicUrl,
-      status: 'ready'
-    });
-    if (videoError) throw videoError;
+    let videoData;
+    const { data: existingVideo } = await supabase
+      .from('videos')
+      .select('id')
+      .eq('topic_id', topicId)
+      .maybeSingle();
+
+    if (existingVideo) {
+      const { data, error: videoError } = await supabase
+        .from('videos')
+        .update({
+          final_video_url: urlData.publicUrl,
+          status: 'ready'
+        })
+        .eq('id', existingVideo.id)
+        .select()
+        .single();
+      if (videoError) throw videoError;
+      videoData = data;
+    } else {
+      const { data, error: videoError } = await supabase
+        .from('videos')
+        .insert({
+          topic_id: topicId,
+          final_video_url: urlData.publicUrl,
+          status: 'ready'
+        })
+        .select()
+        .single();
+      if (videoError) throw videoError;
+      videoData = data;
+    }
 
     const { error: topicUpdateError } = await supabase
       .from('topics')
@@ -176,6 +202,28 @@ async function renderVideo() {
     if (topicUpdateError) throw topicUpdateError;
 
     console.log(`Render complete! URL: ${urlData.publicUrl}`);
+    console.log("Triggering automatic QA Pipeline...");
+
+    // Determine the base URL of the Next.js app to trigger the API route
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    
+    // Auto-trigger QA Pipeline
+    try {
+      const formData = new URLSearchParams();
+      formData.append('topicId', topicId);
+      if (videoData && videoData.id) {
+         formData.append('videoId', videoData.id);
+      }
+      
+      const qaResponse = await fetch(`${appUrl}/api/qa/trigger`, {
+        method: 'POST',
+        body: formData,
+        // Don't wait for the long-running QA process to finish, the route redirects anyway
+      });
+      console.log(`QA Pipeline triggered. Status: ${qaResponse.status}`);
+    } catch (qaErr) {
+      console.error("Failed to trigger automatic QA pipeline:", qaErr);
+    }
 
   } catch (error) {
     console.error("Render failed:", error);

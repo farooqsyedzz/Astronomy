@@ -14,7 +14,7 @@ const DEFAULT_MODEL = 'openrouter/free';
  * - Trailing commas before } or ]
  * - Control characters
  */
-function robustParseJSON(text: string): any {
+export function robustParseJSON(text: string): any {
   // Strip markdown code fences
   let cleaned = text.trim();
   if (cleaned.startsWith('```')) {
@@ -33,6 +33,39 @@ function robustParseJSON(text: string): any {
   } catch (e) {
     console.error('Failed to parse JSON. Raw text (first 500 chars):', cleaned.substring(0, 500));
     throw e;
+  }
+}
+
+export async function runQACompletion(prompt: string, model: string = DEFAULT_MODEL, retries: number = 1): Promise<any> {
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+    
+    const text = response?.choices?.[0]?.message?.content;
+    if (text) {
+      try {
+        return robustParseJSON(text);
+      } catch (parseError) {
+        if (retries > 0) {
+          console.warn(`JSON parse failed, retrying... (${retries} retries left)`);
+          return runQACompletion(prompt, model, retries - 1);
+        }
+        throw parseError;
+      }
+    }
+    
+    console.error("OpenRouter Response missing text:", JSON.stringify(response, null, 2));
+    throw new Error("No response text from OpenRouter");
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`API call failed, retrying... (${retries} retries left)`);
+      return runQACompletion(prompt, model, retries - 1);
+    }
+    console.error('Error in runQACompletion:', error);
+    throw new Error('Failed to execute QA module via OpenRouter');
   }
 }
 

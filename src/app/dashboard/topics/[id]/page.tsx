@@ -87,6 +87,13 @@ export default async function TopicDetailPage({
                label={topic.status === 'rendering' ? 'Rendering... (Click to Retry)' : video ? 'Re-render Video' : 'Render Video'}
              />
           )}
+          {video && (
+             <Link href={`/dashboard/topics/${topic.id}/qa`} style={{ textDecoration: 'none' }}>
+               <Button variant="default" style={{ backgroundColor: '#8b5cf6', color: 'white' }}>
+                 View QA Report
+               </Button>
+             </Link>
+          )}
         </div>
       </header>
 

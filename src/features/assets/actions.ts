@@ -27,56 +27,76 @@ export async function generateAssets(topicId: string) {
 
   const scenes = validScript.scenes;
 
+  // 1.5 Fetch Existing Assets for all scenes
+  const sceneIds = scenes.map((s: any) => s.id);
+  const { data: existingAssets } = await supabase
+    .from('assets')
+    .select('*')
+    .in('scene_id', sceneIds)
+    .eq('status', 'completed');
+
   // We process scenes sequentially to avoid rate limits (or memory spikes)
   for (const scene of scenes) {
     try {
-      // 2. Generate and Upload Audio
-      console.log(`Generating audio for scene ${scene.id}...`);
-      const audioBuffer = await generateVoiceAudio(scene.narration);
-      const audioPath = `${topicId}/scene_${scene.id}_voice.mp3`;
-      
-      const { error: audioUploadError } = await supabase.storage
-        .from('assets')
-        .upload(audioPath, audioBuffer, {
-          contentType: 'audio/mpeg',
-          upsert: true,
-        });
-        
-      if (audioUploadError) throw audioUploadError;
+      const sceneAssets = existingAssets?.filter((a: any) => a.scene_id === scene.id) || [];
+      const hasVoice = sceneAssets.some((a: any) => a.type === 'voice');
+      const hasImage = sceneAssets.some((a: any) => a.type === 'image');
 
-      const { data: audioUrlData } = supabase.storage.from('assets').getPublicUrl(audioPath);
-      
-      // Insert Audio Asset Record
-      await supabase.from('assets').insert({
-        scene_id: scene.id,
-        type: 'voice',
-        file_url: audioUrlData.publicUrl,
-        status: 'completed',
-      });
+      // 2. Generate and Upload Audio
+      if (!hasVoice) {
+        console.log(`Generating audio for scene ${scene.id}...`);
+        const audioBuffer = await generateVoiceAudio(scene.narration);
+        const audioPath = `${topicId}/scene_${scene.id}_voice.mp3`;
+        
+        const { error: audioUploadError } = await supabase.storage
+          .from('assets')
+          .upload(audioPath, audioBuffer, {
+            contentType: 'audio/mpeg',
+            upsert: true,
+          });
+          
+        if (audioUploadError) throw audioUploadError;
+
+        const { data: audioUrlData } = supabase.storage.from('assets').getPublicUrl(audioPath);
+        
+        // Insert Audio Asset Record
+        await supabase.from('assets').insert({
+          scene_id: scene.id,
+          type: 'voice',
+          file_url: audioUrlData.publicUrl,
+          status: 'completed',
+        });
+      } else {
+        console.log(`Skipping audio for scene ${scene.id}, already exists.`);
+      }
 
       // 3. Generate and Upload Image
-      console.log(`Generating image for scene ${scene.id}...`);
-      const imageBuffer = await generateImageBuffer(scene.image_prompt);
-      const imagePath = `${topicId}/scene_${scene.id}_image.jpg`;
-      
-      const { error: imageUploadError } = await supabase.storage
-        .from('assets')
-        .upload(imagePath, imageBuffer, {
-          contentType: 'image/jpeg',
-          upsert: true,
+      if (!hasImage) {
+        console.log(`Generating image for scene ${scene.id}...`);
+        const imageBuffer = await generateImageBuffer(scene.image_prompt);
+        const imagePath = `${topicId}/scene_${scene.id}_image.jpg`;
+        
+        const { error: imageUploadError } = await supabase.storage
+          .from('assets')
+          .upload(imagePath, imageBuffer, {
+            contentType: 'image/jpeg',
+            upsert: true,
+          });
+
+        if (imageUploadError) throw imageUploadError;
+
+        const { data: imageUrlData } = supabase.storage.from('assets').getPublicUrl(imagePath);
+
+        // Insert Image Asset Record
+        await supabase.from('assets').insert({
+          scene_id: scene.id,
+          type: 'image',
+          file_url: imageUrlData.publicUrl,
+          status: 'completed',
         });
-
-      if (imageUploadError) throw imageUploadError;
-
-      const { data: imageUrlData } = supabase.storage.from('assets').getPublicUrl(imagePath);
-
-      // Insert Image Asset Record
-      await supabase.from('assets').insert({
-        scene_id: scene.id,
-        type: 'image',
-        file_url: imageUrlData.publicUrl,
-        status: 'completed',
-      });
+      } else {
+        console.log(`Skipping image for scene ${scene.id}, already exists.`);
+      }
 
     } catch (error) {
       console.error(`Error generating assets for scene ${scene.id}:`, error);
