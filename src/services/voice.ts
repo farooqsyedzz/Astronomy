@@ -3,13 +3,22 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-export async function generateVoiceAudio(text: string, voice = 'en-US-ChristopherNeural'): Promise<Buffer> {
+export async function generateVoiceAudio(text: string, voiceSettings: any = null): Promise<Buffer> {
   try {
-    const tts = new EdgeTTS({
-      voice: voice,
+    const defaultVoice = 'en-US-GuyNeural';
+    const voiceName = voiceSettings?.voice || defaultVoice;
+    
+    // Construct EdgeTTS options
+    const options: any = {
+      voice: voiceName,
       lang: 'en-US',
       outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-    });
+    };
+    
+    if (voiceSettings?.rate) options.rate = voiceSettings.rate;
+    if (voiceSettings?.pitch) options.pitch = voiceSettings.pitch;
+    
+    const tts = new EdgeTTS(options);
     
     // We need to write to a temp file then read it because node-edge-tts 
     // primarily works by saving to a file in some versions.

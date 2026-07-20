@@ -92,6 +92,36 @@ export default function NewTopicPage() {
               </select>
             </div>
 
+            <div className={styles.inputGroup}>
+              <label htmlFor="voiceProfile">Voice Profile</label>
+              <select id="voiceProfile" name="voiceProfile" className={styles.input} defaultValue="YouTube" disabled={isSubmitting}>
+                <option value="Documentary">Documentary (calm)</option>
+                <option value="YouTube">YouTube (energetic)</option>
+                <option value="Shorts">Shorts (very energetic)</option>
+                <option value="Storytelling">Storytelling (cinematic)</option>
+              </select>
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label htmlFor="videoStyle">Video Style</label>
+              <select id="videoStyle" name="videoStyle" className={styles.input} defaultValue="Cinematic" disabled={isSubmitting}>
+                <option value="Documentary">Documentary</option>
+                <option value="Cinematic">Cinematic</option>
+                <option value="Shorts">Shorts</option>
+                <option value="Educational">Educational</option>
+              </select>
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label htmlFor="retentionLevel">Retention Level</label>
+              <select id="retentionLevel" name="retentionLevel" className={styles.input} defaultValue="Balanced" disabled={isSubmitting}>
+                <option value="Calm">Calm (slower pacing)</option>
+                <option value="Balanced">Balanced</option>
+                <option value="High">High (fast pacing, hard cuts)</option>
+                <option value="Viral">Viral (extreme pacing)</option>
+              </select>
+            </div>
+
             {error && <p className={styles.error}>{error}</p>}
 
             <Button 

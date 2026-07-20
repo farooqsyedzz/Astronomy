@@ -17,7 +17,7 @@ export type CameraMovement =
   | 'ken_burns_br_tl'
   | 'static';
 
-export type TransitionType = 'fade' | 'none';
+export type TransitionType = 'fade' | 'none' | 'hard_cut';
 
 export type VisualEffect = 'dust_particles' | 'none';
 

@@ -121,19 +121,7 @@ Respond ONLY with valid JSON. Do not include markdown formatting like \`\`\`json
 `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 8000,
-    });
-
-    const text = response.choices[0]?.message?.content;
-    if (text) {
-      return robustParseJSON(text);
-    }
-    
-    throw new Error("No response text from OpenRouter");
+    return await runQACompletion(prompt);
   } catch (error) {
     console.error('Error generating research:', error);
     throw new Error('Failed to generate research via OpenRouter');
@@ -175,23 +163,11 @@ Respond ONLY with a valid JSON object matching this structure:
 `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 8000,
-    });
-
-    const text = response.choices[0]?.message?.content;
-    if (text) {
-      let parsed = robustParseJSON(text);
-      if (parsed.scenes && Array.isArray(parsed.scenes)) {
-        parsed.scenes = enforceSceneCount(parsed.scenes, sceneCount);
-      }
-      return parsed;
+    let parsed = await runQACompletion(prompt);
+    if (parsed.scenes && Array.isArray(parsed.scenes)) {
+      parsed.scenes = enforceSceneCount(parsed.scenes, sceneCount);
     }
-    
-    throw new Error("No response text from OpenRouter");
+    return parsed;
   } catch (error) {
     console.error('Error generating script:', error);
     throw new Error('Failed to generate script via OpenRouter');

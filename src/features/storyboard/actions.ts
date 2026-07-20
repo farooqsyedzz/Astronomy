@@ -28,7 +28,8 @@ export async function generateStoryboardAction(topicId: string) {
   // 2. Generate storyboard instructions in batch
   console.log(`Generating storyboard for ${scenes.length} scenes...`);
   const storyboards = await generateStoryboardBatch(
-    scenes.map((s: any) => ({ narration: s.narration, image_prompt: s.image_prompt }))
+    scenes.map((s: any) => ({ narration: s.narration, image_prompt: s.image_prompt })),
+    topic.retention_level
   );
 
   // 3. Update each scene with its storyboard instructions

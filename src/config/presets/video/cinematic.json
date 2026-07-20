@@ -1,0 +1,7 @@
+{
+  "style": "Cinematic",
+  "version": 1,
+  "zoomIntensity": 0.10,
+  "cameraSpeed": "medium",
+  "transitionDefault": "hard_cut"
+}

@@ -1,0 +1,7 @@
+{
+  "style": "Documentary",
+  "version": 1,
+  "zoomIntensity": 0.05,
+  "cameraSpeed": "slow",
+  "transitionDefault": "fade"
+}

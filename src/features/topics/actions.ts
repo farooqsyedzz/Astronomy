@@ -38,6 +38,27 @@ export async function createTopicAndResearch(formData: FormData) {
     if (channelError) throw channelError;
     channel = newChannel;
   }
+  const voiceProfileName = formData.get('voiceProfile') as string || 'YouTube';
+  const videoStyleName = formData.get('videoStyle') as string || 'Cinematic';
+  const retentionLevel = formData.get('retentionLevel') as string || 'Balanced';
+
+  let voiceSettings = null;
+  let videoSettings = null;
+
+  try {
+    const fs = require('fs/promises');
+    const path = require('path');
+    const voicePath = path.join(process.cwd(), `src/config/presets/voice/${voiceProfileName.toLowerCase()}.json`);
+    const videoPath = path.join(process.cwd(), `src/config/presets/video/${videoStyleName.toLowerCase()}.json`);
+    
+    voiceSettings = JSON.parse(await fs.readFile(voicePath, 'utf8'));
+    videoSettings = JSON.parse(await fs.readFile(videoPath, 'utf8'));
+  } catch (err) {
+    console.warn('Failed to load presets, using defaults.', err);
+    // Hardcoded fallbacks just in case
+    voiceSettings = { profile: voiceProfileName, version: 1, voice: "en-US-GuyNeural", rate: "+10%", pitch: "+0Hz" };
+    videoSettings = { style: videoStyleName, version: 1, zoomIntensity: 0.10, cameraSpeed: "medium", transitionDefault: "hard_cut" };
+  }
 
   // 2. Create the topic
   const { data: topic, error: topicError } = await supabase
@@ -48,6 +69,11 @@ export async function createTopicAndResearch(formData: FormData) {
       status: 'researching',
       scene_count: sceneCount,
       sentences_per_scene: sentencesPerScene,
+      voice_profile: voiceProfileName,
+      video_style: videoStyleName,
+      retention_level: retentionLevel,
+      voice_settings: voiceSettings,
+      video_settings: videoSettings
     })
     .select('id')
     .single();

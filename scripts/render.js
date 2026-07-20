@@ -213,24 +213,32 @@ async function renderVideo() {
       if (useCinematic && config.camera.enabled) {
         // ── Cinematic Rendering ──
         const movement = storyboard.camera_movement || 'zoom_in_center';
-        const zoomIntensity = storyboard.zoom_intensity || config.camera.zoomIntensity;
+        
+        // Use database video_settings if available, fallback to config
+        const videoSettings = topic.video_settings || {};
+        const baseZoomIntensity = videoSettings.zoomIntensity || config.camera.zoomIntensity || 0.10;
         
         // Add slight random variation to zoom
         const variation = (Math.random() * 2 - 1) * config.camera.zoomVariation;
-        const finalZoom = Math.max(0.05, zoomIntensity + variation);
+        const finalZoom = Math.max(0.05, baseZoomIntensity + variation);
 
         const zoompanFilter = buildZoompanFilter(movement, duration, finalZoom);
 
         // Build the video filter chain
         let vfChain = zoompanFilter;
 
-        // Add fade transitions
-        if (config.transitions.enabled) {
-          const fadeDur = config.transitions.fadeDuration;
+        // Apply transitions based on storyboard instead of hardcoded config
+        const transitionIn = storyboard.transition_in || 'hard_cut';
+        const transitionOut = storyboard.transition_out || 'hard_cut';
+        
+        const fadeDur = config.transitions.fadeDuration || 1.0;
+        
+        if (transitionIn === 'fade') {
           vfChain += `,fade=t=in:st=0:d=${fadeDur}`;
-          if (duration > fadeDur * 2) {
-            vfChain += `,fade=t=out:st=${(duration - fadeDur).toFixed(2)}:d=${fadeDur}`;
-          }
+        }
+        
+        if (transitionOut === 'fade' && duration > fadeDur * 2) {
+          vfChain += `,fade=t=out:st=${(duration - fadeDur).toFixed(2)}:d=${fadeDur}`;
         }
 
         // Add subtitles

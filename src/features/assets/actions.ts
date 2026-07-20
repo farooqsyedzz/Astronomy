@@ -45,7 +45,7 @@ export async function generateAssets(topicId: string) {
       // 2. Generate and Upload Audio
       if (!hasVoice) {
         console.log(`Generating audio for scene ${scene.id}...`);
-        const audioBuffer = await generateVoiceAudio(scene.narration);
+        const audioBuffer = await generateVoiceAudio(scene.narration, topic.voice_settings);
         const audioPath = `${topicId}/scene_${scene.id}_voice.mp3`;
         
         const { error: audioUploadError } = await supabase.storage

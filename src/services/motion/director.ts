@@ -88,6 +88,7 @@ Return a JSON object:
  */
 export async function generateStoryboardBatch(
   scenes: Array<{ narration: string; image_prompt: string }>,
+  retentionLevel: string = 'Balanced'
 ): Promise<StoryboardInstruction[]> {
   const sceneDescriptions = scenes.map((s, i) => 
     `Scene ${i + 1}: Narration: "${s.narration.substring(0, 100)}..." | Visual: "${s.image_prompt.substring(0, 80)}..."`
@@ -95,7 +96,12 @@ export async function generateStoryboardBatch(
 
   try {
     const prompt = `
-You are a professional documentary film director planning the visual treatment for a ${scenes.length}-scene astronomy documentary.
+You are a professional documentary film director planning the visual treatment for a ${scenes.length}-scene documentary.
+Current Retention Target: ${retentionLevel}.
+- Calm: longer scenes, more fades, slower camera.
+- Balanced: mix of fades and hard cuts.
+- High: mostly hard cuts, quicker zooms.
+- Viral: very fast pacing, hard cuts almost exclusively, punchy edits.
 
 Scenes:
 ${sceneDescriptions}
@@ -103,18 +109,19 @@ ${sceneDescriptions}
 For EACH scene, decide:
 1. camera_movement: One of: zoom_in_center, zoom_out_center, pan_left, pan_right, pan_up, ken_burns_tl_br, ken_burns_br_tl
 2. bgm_mood: One of: mysterious, epic, suspense, emotional, discovery
+3. transition: One of: "hard_cut" or "fade"
 
 Rules:
+- Match transitions to the retention target.
 - Scene 1 should open strong (zoom_in or ken_burns).
 - Last scene should feel closing (zoom_out).
 - VARY the movements. Never repeat the same movement 3 times in a row.
 - Match bgm_mood to the emotional tone of the narration.
-- Use "dust_particles" for cosmic/space scenes, "none" for others.
 
 Return a JSON object with key "scenes" containing an array of objects:
 {
   "scenes": [
-    { "camera_movement": "...", "bgm_mood": "...", "visual_effects": ["..."] }
+    { "camera_movement": "...", "bgm_mood": "...", "transition": "...", "visual_effects": ["..."] }
   ]
 }
 `;
@@ -132,8 +139,8 @@ Return a JSON object with key "scenes" containing an array of objects:
         ? ai.camera_movement
         : randomCamera(i, scenes.length),
       zoom_intensity: 0.15 + (Math.random() * 0.1 - 0.05),
-      transition_in: 'fade' as const,
-      transition_out: 'fade' as const,
+      transition_in: ai.transition === 'hard_cut' ? 'hard_cut' : 'fade',
+      transition_out: ai.transition === 'hard_cut' ? 'hard_cut' : 'fade',
       visual_effects: Array.isArray(ai.visual_effects) ? ai.visual_effects : ['dust_particles'],
       bgm_mood: BGM_MOODS.includes(ai.bgm_mood) ? ai.bgm_mood : 'mysterious',
     }));
