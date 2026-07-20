@@ -58,14 +58,9 @@ Provide your output as a JSON object:
   `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 1000,
-    });
-
-    return robustParseJSON(response.choices[0]?.message?.content || '{"score": 0, "explanation": "Failed to parse"}');
+    const { runQACompletion } = await import('@/services/ai');
+    const result = await runQACompletion(prompt);
+    return result;
   } catch (error) {
     console.error('Error during AI topic validation:', error);
     return { score: 0, explanation: 'API Error during validation', offTopicSections: [] };

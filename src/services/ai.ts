@@ -266,14 +266,7 @@ Respond ONLY with valid JSON (an array). Do not include markdown formatting like
 `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 8000,
-    });
-
-    let parsed = robustParseJSON(response.choices[0]?.message?.content || '[]');
+    let parsed = await runQACompletion(prompt);
   
     if (!Array.isArray(parsed) && parsed.scenes && Array.isArray(parsed.scenes)) {
       parsed = parsed.scenes;

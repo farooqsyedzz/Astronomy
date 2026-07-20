@@ -217,18 +217,13 @@ Respond ONLY with a JSON object:
 
   while (attempts <= maxRetries) {
     attempts++;
-    const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      max_tokens: 8000,
-    });
-
     let parsed: any = {};
     try {
-      parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+      const { runQACompletion } = await import('@/services/ai');
+      parsed = await runQACompletion(prompt);
     } catch (e) {
-      console.warn(`JSON parse failed on optimize attempt ${attempts}`);
+      console.warn("Script fix JSON parse or API error:", e);
+      continue;
     }
 
     if (parsed.scenes && Array.isArray(parsed.scenes)) {
@@ -337,14 +332,8 @@ Respond ONLY with a JSON object:
 }
   `;
 
-  const response = await client.chat.completions.create({
-    model: DEFAULT_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-    max_tokens: 8000,
-  });
-
-  const parsed = robustParseJSON(response.choices[0]?.message?.content || '{}');
+  const { runQACompletion } = await import('@/services/ai');
+  const parsed = await runQACompletion(prompt);
 
   // Insert review
   await supabase.from('producer_reviews').insert({

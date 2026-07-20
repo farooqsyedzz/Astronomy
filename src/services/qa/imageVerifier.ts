@@ -54,21 +54,38 @@ Respond ONLY with valid JSON. Do not include markdown formatting.
 `;
 
     try {
-      const response = await client.chat.completions.create({
-        model: visionModel,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: promptText },
-              { type: 'image_url', image_url: { url: imageAsset.file_url } }
-            ]
-          }
-        ],
-        response_format: { type: 'json_object' }
-      });
+      let text = null;
+      let lastError = null;
+      const visionModels = ['google/gemini-pro-vision', 'google/gemini-1.5-flash', 'openai/gpt-4-vision-preview'];
+      
+      for (const model of visionModels) {
+        try {
+          const response = await client.chat.completions.create({
+            model: model,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: promptText },
+                  { type: 'image_url', image_url: { url: imageAsset.file_url } }
+                ]
+              }
+            ],
+            response_format: { type: 'json_object' }
+          });
+          text = response.choices[0]?.message?.content;
+          if (text) break;
+        } catch (e: any) {
+          console.warn(`Vision model ${model} failed: ${e.message}`);
+          lastError = e;
+        }
+      }
 
-      const text = response.choices[0]?.message?.content;
+      if (!text) {
+        console.error('All vision models failed:', lastError);
+        continue;
+      }
+
       if (text) {
         const result = robustParseJSON(text);
         totalScore += result.score || 0;
